@@ -8,7 +8,7 @@ const client = new Client({
   ]
 });
 
-const BATMAN_ID = '1418699621986734092';
+const BATMAN_ID = '648818494808391696';
 
 const responses = {
   'احبك': {
@@ -101,7 +101,7 @@ client.on('messageCreate', message => {
   if (message.author.bot) return;
   const content = message.content.trim();
   if (responses[content]) {
-    const isBatman = message.author.id === BATMAN_ID;
+    const isBatman = message.author.id === BATMAN_k85i;
     const reply = isBatman
       ? responses[content].batman
       : responses[content].others.replace('{user}', `<@${message.author.id}>`);
