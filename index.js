@@ -10,7 +10,7 @@ const client = new Client({
 });
 
 const OWNER_ID = '648818494808391696';
-const genAI = new GoogleGenerativeAI('AIzaSyB59BHn1nMNnrgWpl1SWRlhF8QCwWubgr0');
+const genAI = new GoogleGenerativeAI('AIzaSyA5S-QtUSxejbSlw8RWUXp2CpHTj5kJTVw');
 const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
 const systemPrompt = `أنتِ Catwoman، المرأة القطة من غوثام. شخصيتك:
