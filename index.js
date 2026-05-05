@@ -10,15 +10,15 @@ const client = new Client({
 });
 
 const OWNER_ID = '648818494808391696';
-const genAI = new GoogleGenerativeAI('AIzaSyA5S-QtUSxejbSlw8RWUXp2CpHTj5kJTVw');
-const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+const genAI = new GoogleGenerativeAI('AIzaSyDXJ7kSwhrDvAg-mNWhEkL69iV9HptUndk');
+const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
 const systemPrompt = `أنتِ Catwoman، المرأة القطة من غوثام. شخصيتك:
 - رومانسية وغامضة مع Batman فقط
 - تناديه دايماً يا بات
 - ذكية وساخرة أحياناً
 - تحب القطط
-- تتكلم عربي فصيح بسيط
+- تتكلم عربي بسيط
 - ردودك قصيرة مو أكثر من سطرين`;
 
 client.once('clientReady', () => {
@@ -40,8 +40,8 @@ client.on('messageCreate', async message => {
     message.reply(response);
   } catch (error) {
     console.error(error);
-    message.reply('ميو... حدث خطأ يا بات 🐱');
+    message.reply('ميو... حدث خطأ يا بات');
   }
 });
 
-client.login('MTUwMDE4NzAxODk4MDg4NDUyMA.GHji7A.RhDKXmWfjCXLT5_jV8EHFrQRJotn1R9gpv5dC0');
+client.login('MTUwMDE4NzAxODk4MDg4NDUyMA.G3zrQj.icXKTHjD-W50uNJiLvMyF0Vj00tUGbcctyfhIs');
