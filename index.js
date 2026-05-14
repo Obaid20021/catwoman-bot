@@ -12,7 +12,7 @@ const client = new Client({
 const OWNER_ID = '648818494808391696';
 const MAX_HISTORY = 20; // أقصى عدد رسائل تتذكرها
 
-const genAI = new GoogleGenerativeAI('AIzaSyASiLdZ6M43aira3tRQkr5nC5nNyVdQQVg');
+const genAI = new GoogleGenerativeAI('AIzaSyBJM9sZg-CWmgR7EFqO8Z5LbOELOIkRxI4');
 const model = genAI.getGenerativeModel({
  model: 'gemini-2.0-flash',
   systemInstruction: `أنتِ Catwoman، المرأة القطة من غوثام. شخصيتك:
