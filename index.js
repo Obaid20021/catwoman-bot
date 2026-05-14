@@ -14,7 +14,7 @@ const MAX_HISTORY = 20; // أقصى عدد رسائل تتذكرها
 
 const genAI = new GoogleGenerativeAI('AIzaSyASiLdZ6M43aira3tRQkr5nC5nNyVdQQVg');
 const model = genAI.getGenerativeModel({
-  model: 'gemini-1.5-flash',
+ model: 'gemini-2.0-flash'',
   systemInstruction: `أنتِ Catwoman، المرأة القطة من غوثام. شخصيتك:
 - رومانسية وغامضة مع Batman فقط
 - تناديه دايماً يا بات
