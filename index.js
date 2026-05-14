@@ -10,7 +10,7 @@ const client = new Client({
 });
 
 const OWNER_ID = '648818494808391696';
-const genAI = new GoogleGenerativeAI('AIzaSyDXJ7kSwhrDvAg-mNWhEkL69iV9HptUndk');
+const genAI = new GoogleGenerativeAI('AIzaSyBrTLBZUxd79IqhJ0ey8iuouhs3iPlSTLQ');
 const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
 const systemPrompt = `أنتِ Catwoman، المرأة القطة من غوثام. شخصيتك:
@@ -44,4 +44,4 @@ client.on('messageCreate', async message => {
   }
 });
 
-client.login('MTUwMDE4NzAxODk4MDg4NDUyMA.G3zrQj.icXKTHjD-W50uNJiLvMyF0Vj00tUGbcctyfhIs');
+client.login('MTUwMDE4NzAxODk4MDg4NDUyMA.GxtRH5.qPfU0ku4vDFDGkP0sWzury7YK-OAUMs1pYHOMA');
