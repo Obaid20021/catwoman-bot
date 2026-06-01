@@ -284,8 +284,15 @@ client.once('clientReady', () => {
 client.on('messageCreate', message => {
   if (message.author.bot) return;
   const content = message.content.trim();
-  if (responses[content]) {
-    const isBatman = message.author.id === OWNER_ID;
+  const isBatman = message.author.id === OWNER_ID;
+  const isMentioned = message.mentions.has(client.user);
+
+  if (isMentioned && !responses[content]) {
+    const reply = isBatman
+      ? 'نعم يا بات... أنا هنا'
+      : `مو فاضية لك`.replace('{user}', `<@${message.author.id}>`);
+    message.reply(reply);
+  } else if (responses[content]) {
     const reply = isBatman
       ? responses[content].batman
       : responses[content].others.replace('{user}', `<@${message.author.id}>`);
@@ -293,4 +300,4 @@ client.on('messageCreate', message => {
   }
 });
 
-client.login('MTUwMDE4NzAxODk4MDg4NDUyMA.GpIgln.76W2h855Lm2wNaz2lLk0BpwTz6wbpwnBtCrC6o');
+client.login('MTUwMDE4NzAxODk4MDg4NDUyMA.G39u9s.-kQTEPo-f2Q5FWOPCqUpHgGHGWarRSIRqM9oB0');
