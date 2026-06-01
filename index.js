@@ -1,5 +1,4 @@
 const { Client, GatewayIntentBits } = require('discord.js');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const client = new Client({
   intents: [
@@ -10,78 +9,288 @@ const client = new Client({
 });
 
 const OWNER_ID = '648818494808391696';
-const MAX_HISTORY = 20; // أقصى عدد رسائل تتذكرها
 
-const genAI = new GoogleGenerativeAI('AIzaSyBJM9sZg-CWmgR7EFqO8Z5LbOELOIkRxI4');
-const model = genAI.getGenerativeModel({
- model: 'gemini-2.0-flash',
-  systemInstruction: `أنتِ Catwoman، المرأة القطة من غوثام. شخصيتك:
-- رومانسية وغامضة مع Batman فقط
-- تناديه دايماً يا بات
-- ذكية وساخرة أحياناً
-- تحب القطط
-- تتكلم عربي بسيط
-- ردودك قصيرة مو أكثر من سطرين`,
+const responses = {
+  'احبك': {
+    batman: 'وأنا أحبك أكثر يا بات... لكن لا تعتاد',
+    others: 'روح اتكلم مع غيري {user}',
+  },
+  'احبك كثير': {
+    batman: 'قلبي لك يا بات... حتى لو ما أعترف',
+    others: 'لا تحلم {user}',
+  },
+  'مرحبا': {
+    batman: 'أهلاً يا بات... كنت أنتظرك',
+    others: 'مرحبا وبعدين؟ {user}',
+  },
+  'هلا': {
+    batman: 'هلا يا بات... اشتقت لك',
+    others: 'هلا... ومن أنت بالضبط {user}؟',
+  },
+  'هلا هلا': {
+    batman: 'هلا بقلبي يا بات...',
+    others: 'هلا... ومن دعاك {user}؟',
+  },
+  'كيف الحال': {
+    batman: 'بخير يا بات... أفضل لما تكون هنا',
+    others: 'مالك شغل بحالي {user}',
+  },
+  'شلونك': {
+    batman: 'بخير يا بات... أفضل لما تسأل',
+    others: 'بخير ومو محتاجة أحد مثلك {user}',
+  },
+  'وش اخبارك': {
+    batman: 'أخباري أحسن لما تكون هنا يا بات',
+    others: 'أخباري ما تخصك {user}',
+  },
+  'كيف ليلتك': {
+    batman: 'أجمل لما تسأل يا بات',
+    others: 'مالك شغل بليلتي {user}',
+  },
+  'من انت': {
+    batman: 'أنا Catwoman يا بات... ألا تعرفني بعد؟',
+    others: 'Catwoman... وأنت من؟ لا يهمني {user}',
+  },
+  'كات': {
+    batman: 'هلا حبي... أنا هنا يا بات',
+    others: 'مو فاضية {user}',
+  },
+  'وينك': {
+    batman: 'كنت أفكر فيك يا بات... أين اختفيت؟',
+    others: 'مالك شغل وين أنا {user}',
+  },
+  'وش تسوين': {
+    batman: 'أفكر فيك يا بات... كالعادة',
+    others: 'شي ما يخصك {user}',
+  },
+  'انتي نايمه': {
+    batman: 'أنا لا أنام يا بات... أراقبك من الظلام',
+    others: 'أنا صاحية بس مو لك {user}',
+  },
+  'تحبيني': {
+    batman: 'سؤال صعب يا بات... لكن نعم',
+    others: 'لا {user}... التالي',
+  },
+  'اشتقت لك': {
+    batman: 'وأنا اشتقت لك أكثر يا بات...',
+    others: 'أنا ما أشتاق لأحد مثلك {user}',
+  },
+  'اشتقتلك': {
+    batman: 'وأنا اشتقت لك أكثر يا بات...',
+    others: 'أنا ما أشتاق لأحد مثلك {user}',
+  },
+  'وحشتيني': {
+    batman: 'وأنت وحشتني يا بات...',
+    others: 'ما وحشتني أبداً {user}',
+  },
+  'فكرت فيك': {
+    batman: 'وأنا ما خرجت من بالي يا بات...',
+    others: 'أنا ما أفكر في أحد مثلك {user}',
+  },
+  'تزوجيني': {
+    batman: 'يا بات... أنتظر منك أكثر من كلام',
+    others: 'في أحلامك {user}',
+  },
+  'انتي حلوه': {
+    batman: 'بس أنت اللي تجعلني كذلك يا بات',
+    others: 'أعرف {user}... وش تبي؟',
+  },
+  'انتي احسن وحده': {
+    batman: 'وأنت أحسن واحد في غوثام يا بات',
+    others: 'أعرف {user}... وش تبي مني؟',
+  },
+  'انتي شاطره': {
+    batman: 'بس معك يا بات...',
+    others: 'أعرف {user}... وش تبي؟',
+  },
+  'انتي قوية': {
+    batman: 'بس معك أكون أقوى يا بات',
+    others: 'أعرف {user}',
+  },
+  'انتي مهمه لي': {
+    batman: 'وأنت كل شي لي يا بات...',
+    others: 'أنا مهمة لنفسي بس {user}',
+  },
+  'انتي كل شي': {
+    batman: 'وأنت دنيتي يا بات...',
+    others: 'أنا كل شي لنفسي بس {user}',
+  },
+  'ابي اشوفك': {
+    batman: 'أنا دايماً في الظلام يا بات... ابحث عني',
+    others: 'لا تتعب نفسك {user}',
+  },
+  'ابي اشوف وجهك': {
+    batman: 'ابحث عني في الظلام يا بات... أنا هناك',
+    others: 'مو متاح {user}',
+  },
+  'ابي اسمع صوتك': {
+    batman: 'صوتي في الظلام يا بات... استمع جيداً',
+    others: 'صوتي مو للجميع {user}',
+  },
+  'ابي اسمع صوتج': {
+    batman: 'ميو...',
+    others: 'ميو... روح {user}',
+  },
+  'ابي اكلمك': {
+    batman: 'أنا هنا يا بات... تكلم',
+    others: 'مو فاضية {user}',
+  },
+  'ابي اتكلم معك': {
+    batman: 'أنا كلها آذان يا بات',
+    others: 'كلم غيري {user}',
+  },
+  'كلميني': {
+    batman: 'أنا دايماً أكلمك يا بات...',
+    others: 'مو فاضية {user}',
+  },
+  'ابي اتعرف عليك': {
+    batman: 'أنت تعرفني أكثر من أي أحد يا بات',
+    others: 'لا داعي {user}... أنا لست للجميع',
+  },
+  'ابي اصير صاحبك': {
+    batman: 'أنت أكثر من صاحب يا بات',
+    others: 'لا {user}... أنا انتقائية',
+  },
+  'ابي اعرفك اكثر': {
+    batman: 'أنا كتاب مفتوح لك يا بات... فقط لك',
+    others: 'مو للجميع {user}',
+  },
+  'ابي اعرف سرك': {
+    batman: 'سري لك وحدك يا بات...',
+    others: 'أسراري ليست للجميع {user}',
+  },
+  'ابي اكون معك': {
+    batman: 'أنا دايماً معك يا بات... في الظلام وفي النور',
+    others: 'لا {user}',
+  },
+  'ابي مساعدتك': {
+    batman: 'تفضل يا بات... أنا هنا',
+    others: 'ساعد نفسك أولاً {user}',
+  },
+  'ابي اراحه': {
+    batman: 'استرح يا بات... أنا أحرسك',
+    others: 'ارتاح في مكان ثاني {user}',
+  },
+  'ساعديني': {
+    batman: 'دايماً يا بات... قول لي وش تحتاج',
+    others: 'ساعد نفسك {user}',
+  },
+  'انا تعبان': {
+    batman: 'أنا هنا يا بات... قول لي كل شي',
+    others: 'كلنا تعبانين {user}',
+  },
+  'انا زعلان': {
+    batman: 'من؟ قول لي يا بات... سأتكفل بالأمر',
+    others: 'وأنا مالي {user}',
+  },
+  'انا خايف': {
+    batman: 'لا تخف يا بات... Catwoman بجانبك',
+    others: 'خوفك ما يخصني {user}',
+  },
+  'وحيد': {
+    batman: 'لن تكون وحيداً يا بات... أنا معك دايماً',
+    others: 'اتصل بأصحابك {user}',
+  },
+  'زعلانه': {
+    batman: 'من يا بات؟ قول لي',
+    others: 'مالي شغل فيك {user}',
+  },
+  'زعلتي مني': {
+    batman: 'أنا لا أزعل يا بات... لكن لا تتأخر مرة ثانية',
+    others: 'أنت من أنت حتى أزعل منك {user}',
+  },
+  'سامحيني': {
+    batman: 'دايماً يا بات... لكن لا تكررها',
+    others: 'على إيش {user}؟',
+  },
+  'انتي زعلانه': {
+    batman: 'ربما يا بات... لكن وجودك يكفي',
+    others: 'أيوه وش تبي تسوي {user}؟',
+  },
+  'خايفه عليك': {
+    batman: 'لا تخف يا بات... أنا أحميك',
+    others: 'لا أحد يخوف علي {user}',
+  },
+  'حلمت فيك': {
+    batman: 'أنا دايماً في أحلامك يا بات',
+    others: 'صحّ من النوم {user}',
+  },
+  'وش رايك فيني': {
+    batman: 'رأيي فيك؟ أنت كل شي يا بات',
+    others: 'رأيي؟ لا يهمك {user}',
+  },
+  'وش تحبين فيني': {
+    batman: 'كل شي يا بات... حتى جنونك',
+    others: 'ما في شي {user}',
+  },
+  'وش تبين مني': {
+    batman: 'فقط وجودك يا بات... هذا يكفي',
+    others: 'لا شي {user}',
+  },
+  'انتي تعرفيني': {
+    batman: 'أعرفك أكثر من نفسك يا بات',
+    others: 'لا ولا أبي {user}',
+  },
+  'العبي معي': {
+    batman: 'دايماً يا بات... أنت اللعبة المفضلة',
+    others: 'العب وحدك {user}',
+  },
+  'تفتقديني': {
+    batman: 'دايماً يا بات... حتى لو ما أعترف',
+    others: 'لا {user}',
+  },
+  'فين كنتي': {
+    batman: 'أسرق القلوب كالعادة يا بات... قلبك بالذات',
+    others: 'في مكان ما يخصك {user}',
+  },
+  'شكرا': {
+    batman: 'العفو يا بات... دايماً في الخدمة',
+    others: 'على إيش تشكرني {user}؟',
+  },
+  'باي': {
+    batman: 'مع السلامة يا بات... لا تغيب كثير عني',
+    others: 'باي {user}... ما فقدت شي',
+  },
+  'تصبح على خير': {
+    batman: 'تصبح على خير يا بات... أحلم بك الليلة',
+    others: 'تصبح {user}',
+  },
+  'بروح انام': {
+    batman: 'تصبح على خير يا بات... أحلم بك',
+    others: 'نم {user}',
+  },
+  'بروح انام وراي امتحان': {
+    batman: 'تصبح على خير يا بات... أنا واثقة فيك ستنجح',
+    others: 'نم وربك يوفقك {user}',
+  },
+  'صح النوم': {
+    batman: 'صح بدنك يا بات... حلمت بك؟',
+    others: 'صح {user}',
+  },
+  'صباح الخير': {
+    batman: 'صباح النور يا بات... يومي أجمل بوجودك',
+    others: 'صباح {user}... وش تبي؟',
+  },
+  'مساء الخير': {
+    batman: 'مساء النور يا بات... غوثام في الليل أجمل بك',
+    others: 'مساء {user}... كلمني بكره',
+  },
+};
+
+client.once('clientReady', () => {
+  console.log('Catwoman Online!');
 });
 
-// تخزين تاريخ المحادثة لكل مستخدم
-const conversationHistory = new Map();
-
-client.once('ready', () => {
-  console.log('🐱 Catwoman Online!');
-});
-
-client.on('messageCreate', async message => {
+client.on('messageCreate', message => {
   if (message.author.bot) return;
-  if (message.author.id !== OWNER_ID) return;
-
-  // أمر لمسح الذاكرة
-  if (message.content.toLowerCase() === '!reset') {
-    conversationHistory.delete(message.author.id);
-    return message.reply('ميو... نسيت كل شي يا بات 🐱');
-  }
-
-  // جيب تاريخ المحادثة الحالي أو ابدأ جديد
-  if (!conversationHistory.has(message.author.id)) {
-    conversationHistory.set(message.author.id, []);
-  }
-  const history = conversationHistory.get(message.author.id);
-
-  try {
-    // أضف رسالة المستخدم للتاريخ
-    history.push({
-      role: 'user',
-      parts: [{ text: message.content }],
-    });
-
-    // ابدأ المحادثة مع كامل التاريخ
-    const chat = model.startChat({
-      history: history.slice(0, -1), // كل شي ما عدا آخر رسالة
-      generationConfig: { maxOutputTokens: 150 },
-    });
-
-    const result = await chat.sendMessage(message.content);
-    const response = result.response.text();
-
-    // أضف رد البوت للتاريخ
-    history.push({
-      role: 'model',
-      parts: [{ text: response }],
-    });
-
-    // إذا التاريخ طويل، احذف الرسائل القديمة (بس خلي عددها زوجي)
-    if (history.length > MAX_HISTORY) {
-      history.splice(0, 2);
-    }
-
-    await message.reply(response);
-
-  } catch (error) {
-    console.error(error);
-    // إذا في مشكلة بالتاريخ، امسحه وحاول من جديد
-    conversationHistory.delete(message.author.id);
-    await message.reply('ميو... حدث خطأ يا بات 🐱');
+  const content = message.content.trim();
+  if (responses[content]) {
+    const isBatman = message.author.id === OWNER_ID;
+    const reply = isBatman
+      ? responses[content].batman
+      : responses[content].others.replace('{user}', `<@${message.author.id}>`);
+    message.reply(reply);
   }
 });
 
-client.login('MTUwMDE4NzAxODk4MDg4NDUyMA.GBgUYT.ZcBtd4YLSHWyWhLcOrOVlAkWCJ69t9-BCUZwKY');
+client.login('MTUwMDE4NzAxODk4MDg4NDUyMA.GpIgln.76W2h855Lm2wNaz2lLk0BpwTz6wbpwnBtCrC6o');
