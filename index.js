@@ -390,8 +390,7 @@ const responses = {
     ],
     others: [
       'مب شغلك {user}',
-  
-           'تمام {user}',
+      'تمام {user}',
     ],
   },
 };
