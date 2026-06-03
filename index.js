@@ -512,4 +512,4 @@ if (isMentioned && !responses[content]) {
   }
 });
 
-client.login('YOUR_TOKEN_HERE');
+client.login('MTUwMDE4NzAxODk4MDg4NDUyMA.Grl1Eq.B-ekF-M4P_npmd5qPxTYBOnftb0GE9y8MAHze4');
