@@ -510,7 +510,6 @@ if (isMentioned && !responses[content]) {
       ? random(batmanReplies)
       : random(othersReplies);
     message.reply(reply);
-  }
 } else if (responses[content]) {
     const arr = isBatman
       ? responses[content].batman
@@ -520,4 +519,4 @@ if (isMentioned && !responses[content]) {
   }
 });
 
-client.login('MTUwMDE4NzAxODk4MDg4NDUyMA.Gr6zw2.rWTj82O16l1qqNovgj9QPfDqlrA7BT91r1I_9k');
+client.login('MTUwMDE4NzAxODk4MDg4NDUyMA.GWnQyO.E5xGoI0hqVsYU8Q54dLGcQ-Kpa2xCgQHNg_ubg');
