@@ -512,4 +512,4 @@ if (isMentioned && !responses[content]) {
   }
 });
 
-client.login('MTUwMDE4NzAxODk4MDg4NDUyMA.GKrhI4.jxuVavtubhxlz72z77Cc9fgLihkVTHPCkw4CCg');
+client.login('MTUwMDE4NzAxODk4MDg4NDUyMA.GVbFpW.jH6evp5j1UxeUF1nJ0DidZfulx1ybI29xXJwt4');
