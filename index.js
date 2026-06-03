@@ -381,15 +381,17 @@ const responses = {
       'مالي شغل {user}',
     ],
   },
-  'موافقه اعطي عزوز ؟': {
+  'كيف ليلتك': {
     batman: [
-      'ما يستاهل',
-      'بفكر ',
-      'اي',
-      'لا',
+      'أجمل لما تسأل يا بات',
+      'ليلتي أجمل بسؤالك يا بات',
+      'كانت عادية... حتى سألت يا بات',
+      'أجمل ليلة لأنك هنا يا بات',
     ],
     others: [
-      'مب شغلك {user}',
+      'مالك شغل بليلتي {user}',
+      'ليلتي ما تخصك {user}',
+      'بخير {user}... وش تبي؟',
       'تمام {user}',
     ],
   },
@@ -405,18 +407,26 @@ client.on('messageCreate', message => {
   const isBatman = message.author.id === OWNER_ID;
   const isMentioned = message.mentions.has(client.user);
 
-  if (isMentioned && !responses[content]) {
+if (isMentioned && !responses[content]) {
+    const batmanReplies = [
+      'نعم يا بات... أنا هنا',
+      'ناديتني يا بات؟',
+      'في الخدمة يا بات...',
+      'لبيك يا بات... وش تبي؟',
+      'أنا هنا دايماً يا بات',
+    ];
+    const othersReplies = [
+      `مو فاضية لك <@${message.author.id}>`,
+      `وش تبي <@${message.author.id}>؟`,
+      `أيوه <@${message.author.id}>... تكلم بسرعة`,
+      `ناديتني <@${message.author.id}>؟ وش فيه؟`,
+      `مو وقتي <@${message.author.id}>`,
+    ];
     const reply = isBatman
-      ? 'نعم يا بات... أنا هنا'
-      : `شتبي مب فاضيه لك <@${message.author.id}>`;
-    message.reply(reply);
-  } else if (responses[content]) {
-    const arr = isBatman
-      ? responses[content].batman
-      : responses[content].others;
-    const reply = random(arr).replace('{user}', `<@${message.author.id}>`);
+      ? random(batmanReplies)
+      : random(othersReplies);
     message.reply(reply);
   }
 });
 
-client.login('MTUwMDE4NzAxODk4MDg4NDUyMA.GBuZyK.dVVOA7bYSYpxW6DkUHKK3gjYaSAkem-VlNdhLw');
+client.login('YOUR_TOKEN_HERE');
