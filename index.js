@@ -511,6 +511,13 @@ if (isMentioned && !responses[content]) {
       : random(othersReplies);
     message.reply(reply);
   }
+} else if (responses[content]) {
+    const arr = isBatman
+      ? responses[content].batman
+      : responses[content].others;
+    const reply = random(arr).replace('{user}', `<@${message.author.id}>`);
+    message.reply(reply);
+  }
 });
 
-client.login('MTUwMDE4NzAxODk4MDg4NDUyMA.GkrXJs.sij7kw3u9uP0lt3ZtkVY6uTKH50cc3gkTIN_DQ');
+client.login('MTUwMDE4NzAxODk4MDg4NDUyMA.Gr6zw2.rWTj82O16l1qqNovgj9QPfDqlrA7BT91r1I_9k');
