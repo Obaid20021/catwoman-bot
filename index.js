@@ -96,4 +96,4 @@ client.on('messageCreate', async message => {
   message.reply(reply);
 });
 
-client.login(MTUwMDE4NzAxODk4MDg4NDUyMA.G3hzfV.hZp9bsuCcuDaY_jS44uoe6m192-XSebrCH2i9w);
+client.login(process.env.DISCORD_TOKEN);
