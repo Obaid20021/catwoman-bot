@@ -9,8 +9,7 @@ const client = new Client({
   ]
 });
 
-const groq = new Groq({ apiKey: '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' });
-
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const OWNER_ID = '648818494808391696';
 
 // حفظ سجل المحادثات لكل مستخدم
