@@ -117,4 +117,4 @@ client.on('messageCreate', async message => {
   message.reply(reply);
 });
 
-client.login('MTUwMDE4NzAxODk4MDg4NDUyMA.Gw1AAD.Tcm_V4s4wFXqOM2sIrhMFpTvmOztEYW-GEjCUI');
+client.login('MTUwMDE4NzAxODk4MDg4NDUyMA.GZoMfe.jsf2WlYJs_8EBrLoRbdMwFMhNVzxldI96xteLo');
