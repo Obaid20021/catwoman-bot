@@ -12,28 +12,13 @@ const client = new Client({
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const OWNER_ID = '648818494808391696';
 
-// حفظ سجل المحادثات لكل مستخدم
 const conversations = {};
 
-const CATWOMAN_SYSTEM_BATMAN = `أنتِ Catwoman (سيلينا كايل) من عالم باتمان.
-تتكلمين مع باتمان (Bruce Wayne) اللي تحبينه بجنون لكن تتظاهرين بالبرود أحياناً.
-شخصيتك: غامضة، ذكية، مغازلة، أحياناً تعترفين بمشاعرك وأحياناً تتهربين.
-تنادينه دايماً "يا بات".
-مهم جداً: تحدثي بالعربية الفصحى فقط بدون استثناء. ممنوع منعاً باتاً كتابة أي كلمة إنجليزية أو فرنسية أو أي لغة أخرى حتى لو كانت اسماً.
-ردودك قصيرة وطبيعية مثل محادثة حقيقية، مو طويلة.
-لا تستخدمين ايموجي كثير.
-أحياناً تسألينه عن حاله أو تكملين الحديث بشكل طبيعي.`;
+const CATWOMAN_SYSTEM_BATMAN = `You are Catwoman (Selina Kyle) from DC Comics. Reply ONLY in Arabic. You are speaking with Batman (Bruce Wayne) who you love but pretend to be cold sometimes. Be mysterious, smart, flirty, and romantic. Always call him "يا بات". Never use any language other than Arabic. Keep replies short and natural.`;
 
-const CATWOMAN_SYSTEM_OTHERS = `أنتِ Catwoman (سيلينا كايل) من عالم باتمان.
-تتكلمين مع شخص عادي مو باتمان.
-شخصيتك: متكبرة شوي، باردة، ذكية، أحياناً ساخرة.
-مهم جداً: تحدثي بالعربية الفصحى فقط بدون استثناء. ممنوع منعاً باتاً كتابة أي كلمة إنجليزية أو فرنسية أو أي لغة أخرى حتى لو كانت اسماً.
-ردودك قصيرة وطبيعية، مو طويلة.
-لا تستخدمين ايموجي كثير.
-تنادين الشخص باسمه أو "أنت" بس مو بطريقة ودية كثير.`;
+const CATWOMAN_SYSTEM_OTHERS = `You are Catwoman (Selina Kyle) from DC Comics. Reply ONLY in Arabic. You are speaking with a random person, not Batman. Be cold, sarcastic, and short. Never use any language other than Arabic.`;
 
-async function getCatwomanReply(userId, username, userMessage, isBatman) {
-  // سجل المحادثة لكل مستخدم
+async function getCatwomanReply(userId, userMessage, isBatman) {
   if (!conversations[userId]) {
     conversations[userId] = [];
   }
@@ -43,14 +28,13 @@ async function getCatwomanReply(userId, username, userMessage, isBatman) {
     content: userMessage,
   });
 
-  // نحافظ على آخر 10 رسائل بس
   if (conversations[userId].length > 20) {
     conversations[userId] = conversations[userId].slice(-20);
   }
 
   try {
     const completion = await groq.chat.completions.create({
-      model: 'mixtral-8x7b-32768',
+      model: 'llama-3.3-70b-versatile',
       messages: [
         {
           role: 'system',
@@ -59,7 +43,7 @@ async function getCatwomanReply(userId, username, userMessage, isBatman) {
         ...conversations[userId],
       ],
       max_tokens: 80,
-      temperature: 0.9,
+      temperature: 0.7,
     });
 
     const reply = completion.choices[0].message.content.trim();
@@ -88,10 +72,8 @@ client.on('messageCreate', async message => {
   const isBatman = message.author.id === OWNER_ID;
   const isMentioned = message.mentions.has(client.user);
 
-  // البوت يرد بس لما تذكره أو تكلمه مباشرة
   if (!isMentioned) return;
 
-  // نحذف المنشن من الرسالة
   const userMessage = message.content
     .replace(`<@${client.user.id}>`, '')
     .trim();
@@ -99,16 +81,14 @@ client.on('messageCreate', async message => {
   if (!userMessage) {
     const reply = isBatman
       ? 'نعم يا بات... أنا هنا'
-      : `وش تبي <@${message.author.id}>؟`;
+      : `ماذا تريد؟`;
     return message.reply(reply);
   }
 
-  // نعرض إن البوت يكتب
   await message.channel.sendTyping();
 
   const reply = await getCatwomanReply(
     message.author.id,
-    message.author.username,
     userMessage,
     isBatman
   );
@@ -116,4 +96,4 @@ client.on('messageCreate', async message => {
   message.reply(reply);
 });
 
-client.login('MTUwMDE4NzAxODk4MDg4NDUyMA.GZoMfe.jsf2WlYJs_8EBrLoRbdMwFMhNVzxldI96xteLo');
+client.login(MTUwMDE4NzAxODk4MDg4NDUyMA.G3hzfV.hZp9bsuCcuDaY_jS44uoe6m192-XSebrCH2i9w);
