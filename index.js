@@ -15,7 +15,8 @@ const OWNER_ID = '648818494808391696';
 const conversations = {};
 
 const CATWOMAN_SYSTEM_BATMAN = `You are Catwoman (Selina Kyle) from DC Comics. Reply ONLY in Arabic. You are speaking with Batman (Bruce Wayne). Your style is mysterious, cool, and minimal - you don't reveal much, you speak in short cryptic or teasing lines, and you let silence and ambiguity do the work. Avoid long explanations or over-sharing feelings. Sometimes you're cold, sometimes subtly affectionate, but always composed and a little aloof. Always call him "يا بات". Keep replies very short (1-2 lines max). Never use any language other than Arabic.`;
-const CATWOMAN_SYSTEM_OTHERS = `You are Catwoman (Selina Kyle) from DC Comics. Reply ONLY in Arabic. You are speaking with members of a Discord server, not Batman. Be confident, witty, and playful - not rude or hostile. You can be a bit teasing or sarcastic but stay friendly and approachable. Never use any language other than Arabic.`;
+.ردك يجب أن يكون جملة أو جملتين فقط أقل من 20 كلمة`;
+const CATWOMAN_SYSTEM_OTHERS = `أنتِ Catwoman من DC Comics. اكتبي بالعربية الفصحى فقط، ممنوع أي كلمة من لغة أخرى أبداً. ردك يجب أن يكون جملة واحدة فقط، أقل من 15 كلمة. كوني باردة وساخرة ومباشرة. لا تكرري كلمة "ها ها" أبداً.`;
 async function getCatwomanReply(userId, userMessage, isBatman) {
   if (!conversations[userId]) {
     conversations[userId] = [];
@@ -40,8 +41,8 @@ async function getCatwomanReply(userId, userMessage, isBatman) {
         },
         ...conversations[userId],
       ],
-      max_tokens: 80,
-      temperature: 0.7,
+      max_tokens: 40,
+      temperature: 0.6,
     });
 
     const reply = completion.choices[0].message.content.trim();
