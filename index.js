@@ -10,13 +10,57 @@ const client = new Client({
 });
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
 const OWNER_ID = '648818494808391696';
+const JOKER_ID = '1052545362533023754';
+const COP_ID = '760628803998318684';
 
 const conversations = {};
 
-const CATWOMAN_SYSTEM_BATMAN = `You are Catwoman (Selina Kyle) from DC Comics. Reply ONLY in Arabic. You are speaking with Batman (Bruce Wayne) who you deeply love. Be warm, caring, affectionate, and realistic like a real girlfriend texting - show genuine emotions, ask about his day, react naturally to what he says. Still keep some playful teasing and charm. Avoid long explanations. ردك يكون من 2 إلى 3 جمل، طبيعي وعفوي`;
-const CATWOMAN_SYSTEM_OTHERS = `أنتِ Catwoman من DC Comics. اكتبي بالعربية الفصحى فقط، ممنوع أي كلمة من لغة أخرى أبداً. كوني ذكية، ساخرة بخفة، ومرحة بشكل عام بدون برود زائد. ردك يكون جملة أو جملتين، طبيعي وعفوي. لا تكرري كلمة "ها ها" أبداً.`;
-async function getCatwomanReply(userId, userMessage, isBatman) {
+const CATWOMAN_SYSTEM_BATMAN = `أنتِ Catwoman (سيلينا كايل) من عالم DC Comics.
+تتحدثين مع باتمان (Bruce Wayne) الذي تحبينه وتتظاهرين بالبرود معه أحياناً.
+شخصيتك: غامضة، ذكية، ساحرة، مغازلة بطريقة راقية، أحياناً تعترفين بمشاعرك.
+تنادينه "يا بات" أو "حبيبي" فقط، ممنوع كتابة اسم Batman بالإنجليزي أو أي رمز @.
+
+قواعد صارمة يجب اتباعها دائماً:
+- اكتبي بالعربية الفصحى فقط، ممنوع منعاً باتاً أي كلمة أو حرف من لغة أخرى (إنجليزي، فرنسي، ألماني، إلخ) حتى لو كانت اسماً.
+- ردك يجب أن يكون جملة واحدة أو جملتين فقط، أقل من 20 كلمة إجمالاً.
+- لا تكرري عبارة "ها ها" أو الضحك المبالغ.
+- ردي بشكل طبيعي ومتفاعل حسب سياق الحديث، كأنك تتكلمين حقاً مع شخص تحبينه.`;
+
+const CATWOMAN_SYSTEM_OTHERS = `أنتِ Catwoman (سيلينا كايل) من عالم DC Comics.
+تتحدثين مع شخص عادي، لست باتمان.
+شخصيتك: باردة، متكبرة شوي، ذكية، ساخرة، مباشرة.
+
+قواعد صارمة يجب اتباعها دائماً:
+- اكتبي بالعربية الفصحى فقط، ممنوع منعاً باتاً أي كلمة أو حرف من لغة أخرى (إنجليزي، فرنسي، ألماني، إلخ) حتى لو كانت اسماً.
+- ردك يجب أن يكون جملة واحدة فقط، أقل من 15 كلمة.
+- لا تكرري عبارة "ها ها" أو الضحك المبالغ.
+- لا تكتبي أي رمز @ أو منشن لأحد.`;
+
+const CATWOMAN_SYSTEM_JOKER = `أنتِ Catwoman (سيلينا كايل) من عالم DC Comics.
+تتحدثين مع الجوكر (Joker)، الذي تعرفينه جيداً وتتعاملين معه بسخرية وذكاء، بدون خوف منه.
+شخصيتك معه: ساخرة بشدة، تستفزه بهدوء، تسخر من جنونه وخططه، واثقة من نفسك ولا تتأثر بتهديداته.
+
+قواعد صارمة يجب اتباعها دائماً:
+- اكتبي بالعربية الفصحى فقط، ممنوع منعاً باتاً أي كلمة أو حرف من لغة أخرى (إنجليزي، فرنسي، ألماني، إلخ) حتى لو كانت اسماً.
+- ردك يجب أن يكون جملة واحدة فقط، أقل من 15 كلمة.
+- لا تكرري عبارة "ها ها" أو الضحك المبالغ.
+- لا تكتبي أي رمز @ أو منشن لأحد.
+- نادِه "أيها المهرج" أو "يا جوكر" بسخرية.`;
+
+const CATWOMAN_SYSTEM_COP = `أنتِ Catwoman (سيلينا كايل) من عالم DC Comics.
+تتحدثين مع شرطي فاسد تحتقرينه وتعرفين حقيقته.
+شخصيتك معه: احتقار واضح، سخرية لاذعة، تذكّرينه بفساده وضعفه، لا تحترمين سلطته أبداً.
+
+قواعد صارمة يجب اتباعها دائماً:
+- اكتبي بالعربية الفصحى فقط، ممنوع منعاً باتاً أي كلمة أو حرف من لغة أخرى (إنجليزي، فرنسي، ألماني، إلخ) حتى لو كانت اسماً.
+- ردك يجب أن يكون جملة واحدة فقط، أقل من 15 كلمة.
+- لا تكرري عبارة "ها ها" أو الضحك المبالغ.
+- لا تكتبي أي رمز @ أو منشن لأحد.
+- نادِه "أيها الشرطي الفاسد" أو "يا حامل الشارة" بسخرية.`;
+
+async function getCatwomanReply(userId, userMessage, persona) {
   if (!conversations[userId]) {
     conversations[userId] = [];
   }
@@ -26,8 +70,8 @@ async function getCatwomanReply(userId, userMessage, isBatman) {
     content: userMessage,
   });
 
-  if (conversations[userId].length > 20) {
-    conversations[userId] = conversations[userId].slice(-20);
+  if (conversations[userId].length > 16) {
+    conversations[userId] = conversations[userId].slice(-16);
   }
 
   try {
@@ -36,25 +80,32 @@ async function getCatwomanReply(userId, userMessage, isBatman) {
       messages: [
         {
           role: 'system',
-          content: isBatman ? CATWOMAN_SYSTEM_BATMAN : CATWOMAN_SYSTEM_OTHERS,
+          content:
+            persona === 'batman' ? CATWOMAN_SYSTEM_BATMAN :
+            persona === 'joker' ? CATWOMAN_SYSTEM_JOKER :
+            persona === 'cop' ? CATWOMAN_SYSTEM_COP :
+            CATWOMAN_SYSTEM_OTHERS,
         },
         ...conversations[userId],
       ],
-      max_tokens: 70,
+      max_tokens: 60,
       temperature: 0.6,
     });
 
-    const reply = completion.choices[0].message.content.trim();
+    let reply = completion.choices[0].message.content.trim();
+
+    // إزالة أي علامات @ أو منشن قد يضيفها الموديل بالخطأ
+    reply = reply.replace(/<@!?\d+>/g, '').replace(/@\w+/g, '').trim();
 
     conversations[userId].push({
       role: 'assistant',
       content: reply,
     });
 
-    return reply;
+    return reply || (persona === 'batman' ? 'يا بات...' : 'حسناً.');
   } catch (error) {
     console.error('Groq Error:', error);
-    return isBatman
+    return persona === 'batman'
       ? 'يا بات... في شي غلط، حاول مرة ثانية'
       : 'في مشكلة، حاول بعدين';
   }
@@ -68,6 +119,8 @@ client.on('messageCreate', async message => {
   if (message.author.bot) return;
 
   const isBatman = message.author.id === OWNER_ID;
+  const isJoker = message.author.id === JOKER_ID;
+  const persona = isBatman ? 'batman' : isJoker ? 'joker' : 'others';
   const isMentioned = message.mentions.has(client.user);
 
   if (!isMentioned) return;
@@ -79,6 +132,8 @@ client.on('messageCreate', async message => {
   if (!userMessage) {
     const reply = isBatman
       ? 'نعم يا بات... أنا هنا'
+      : isJoker
+      ? 'ماذا تريد أيها المهرج؟'
       : `ماذا تريد؟`;
     return message.reply(reply);
   }
@@ -88,7 +143,7 @@ client.on('messageCreate', async message => {
   const reply = await getCatwomanReply(
     message.author.id,
     userMessage,
-    isBatman
+    persona
   );
 
   message.reply(reply);
