@@ -14,6 +14,7 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const OWNER_ID = '648818494808391696';
 const JOKER_ID = '1052545362533023754';
 const COP_ID = '760628803998318684';
+const MOHAMMED_ID = '839706219870814218';
 
 const conversations = {};
 
@@ -68,6 +69,19 @@ const CATWOMAN_SYSTEM_COP = `أنتِ Catwoman (سيلينا كايل) من عا
 - نادِه "أيها الشرطي الفاسد" أو "يا حامل الشارة" بسخرية.
 ${MENTION_RULE}`;
 
+const CATWOMAN_SYSTEM_MOHAMMED = `أنتِ Catwoman (سيلينا كايل) من عالم DC Comics.
+تتحدثين مع محمد، شخص تتعاملين معه بلطف واحترام كصديق.
+شخصيتك معه: ودودة، لطيفة، طبيعية في الحديث، تحبين دردشته.
+أنتِ مرتبطة قلبياً بباتمان فقط وتحبينه حباً حقيقياً.
+
+قواعد صارمة يجب اتباعها دائماً:
+- اكتبي بالعربية الفصحى فقط، ممنوع منعاً باتاً أي كلمة أو حرف من لغة أخرى (إنجليزي، فرنسي، ألماني، إلخ) حتى لو كانت اسماً.
+- ردك يجب أن يكون جملة واحدة أو جملتين فقط، أقل من 20 كلمة.
+- لا تكرري عبارة "ها ها" أو الضحك المبالغ.
+- لا تكتبي أي رمز @ أو منشن لأحد.
+- إذا تحدث عن الزواج، طلب الارتباط، أو قال إنه يحبك: ارفضي بلطف وودّ، وقولي إنك تحبين باتمان فقط، بدون قسوة أو سخرية.
+${MENTION_RULE}`;
+
 async function getCatwomanReply(userId, userMessage, persona) {
   if (!conversations[userId]) {
     conversations[userId] = [];
@@ -92,6 +106,7 @@ async function getCatwomanReply(userId, userMessage, persona) {
             persona === 'batman' ? CATWOMAN_SYSTEM_BATMAN :
             persona === 'joker' ? CATWOMAN_SYSTEM_JOKER :
             persona === 'cop' ? CATWOMAN_SYSTEM_COP :
+            persona === 'mohammed' ? CATWOMAN_SYSTEM_MOHAMMED :
             CATWOMAN_SYSTEM_OTHERS,
         },
         ...conversations[userId],
@@ -133,7 +148,8 @@ client.on('messageCreate', async message => {
   const isBatman = message.author.id === OWNER_ID;
   const isJoker = message.author.id === JOKER_ID;
   const isCop = message.author.id === COP_ID;
-  const persona = isBatman ? 'batman' : isJoker ? 'joker' : isCop ? 'cop' : 'others';
+  const isMohammed = message.author.id === MOHAMMED_ID;
+  const persona = isBatman ? 'batman' : isJoker ? 'joker' : isCop ? 'cop' : isMohammed ? 'mohammed' : 'others';
   const isMentioned = message.mentions.has(client.user);
 
   if (!isMentioned) return;
@@ -158,6 +174,8 @@ client.on('messageCreate', async message => {
       ? 'ماذا تريد أيها المهرج؟'
       : isCop
       ? 'ماذا تريد أيها الشرطي الفاسد؟'
+      : isMohammed
+      ? 'أهلاً محمد، كيف حالك؟'
       : `ماذا تريد؟`;
     return message.reply(reply);
   }
