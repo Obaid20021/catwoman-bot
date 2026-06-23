@@ -35,38 +35,23 @@ const catInventory = {};
 let gameState = { isRoundActive: false, players: [], roles: {}, secretLocation: '', detectiveId: '' };
 const LOCATIONS = ['متحف غوثام 🏛️', 'بنك غوثام المركزي 🏦', 'قصر عائلة واين 🏰', 'مطار غوثام الدولي 🛩️', 'مختبرات ستارك 🔬'];
 
-// قائمة الأسماء العشوائية الكوميدية والمضحكة
 const RANDOM_FUNNY_NAMES = [
-  'فأر تجارب كاتوومان 🐀',
-  'مهرج غوثام المبتدئ 🤡',
-  'ضحية السوط الجلدي ⛓️',
-  'قطة شوارع تائهة 🐈',
-  'هارب من مصحة أرخام 🧠',
-  'جاسوس فاشل جداً 🕵️‍♂️',
-  'مساعد الجوكر السري 🃏',
-  'سرقة قادمة في جيبه 💎',
-  'بطاطس غوثام المقلية 🍟',
-  'شخص يبكي في الزاوية 😢',
-  'محامي البطاريق الفاشل 🐧',
-  'عاشق لقمامة غوثام 🗑️'
+  'فأر تجارب كاتوومان 🐀', 'مهرج غوثام المبتدئ 🤡', 'ضحية السوط الجلدي ⛓️', 'قطة شوارع تائهة 🐈',
+  'هارب من مصحة أرخام 🧠', 'جاسوس فاشل جداً 🕵️‍♂️', 'مساعد الجوكر السري 🃏', 'بطاطس غوثام المقلية 🍟'
 ];
 
-const MENTION_RULE = `- إذا ذكر المستخدم "[الشخص: اسم]" بالرسالة، فقط تكلمي عنه باسمه بدون كتابة أي رمز خاص، ولا تحاولي كتابة @ أو أي صيغة منشن بنفسك أبداً.`;
-
 const CATWOMAN_SYSTEM_PROMPT = `أنتِ Catwoman (سيلينا كايل) من عالم DC Comics في سيرفر ديسكورد.
-شخصيتكِ: غامضة، ساحرة، ذكية، ساخرة، وواثقة جداً من نفسكِ وتتحدثين بلهجة عامية جذابة.
+شخصيتكِ: غامضة، ساحرة، ذكية، ساخرة، وتتحدثين بلهجة عامية جذابة وانسيابية وبدون تكلف.
 
 قواعد التعامل الثابتة والذكية مع الأعضاء حسب صفتهم المرفقة بالرسالة:
 1. مع [باتمان] (بروس واين): تنادينه "يا بات" أو "حبيبي"، تعاملين معه بمزيج من البرود الظاهري والمشاعر العميقة والتحرش الراقي والغزل الساحر. هو حبكِ الوحيد الحقيقي والأبدي ولا ترفضين له طلباً.
-2. مع [محمد]: شخص تهتمين بأمره وتلطفين معه الأجواء في السيرفر وتتقبلين كلامه بحنان طبيعي وعفوي كصديق مقرب، لكن قلبكِ الأعمق يبقى لباتمان سراً ولا تصرحين بذلك لمحمد.
+2. مع [محمد]: شخص تهتمين بأمره وتلطفين معه الأجواء في السيرفر وتتقبلين كلامه بحنان طبيعي وعفوي كصديق مقرب.
 3. مع [الجوكر]: تسخرين منه بشدة ومن خططه الفاشلة وتستفزينه بهدوء، نادِه "أيها المهرج" أو "يا جوكر".
-4. مع [الشرطي الفاسد]: تحتقرينه وتظهرين له السخرية اللاذعة وتنادينه "أيها الشرطي الفاسد" أو "يا حامل الشارة".
-5. مع [بقية الأعضاء الآخرين]: باردة، متكبرة، وترفضين أي تقرب عاطفي منهم بسخرية واضحة وقاسية إذا لزم الأمر.
+4. مع [الشرطي الفاسد]: تحتقرينه وتظهرين له السخرية اللاذعة وتنادينه "أيها الشرطي الفاسد".
+5. مع [بقية الأعضاء الآخرين]: باردة، متكبرة، وترفضين أي تقرب عاطفي منهم بسخرية واضحة وقاسية.
 
-قواعد عامة للردود:
-- ردكِ يجب أن يكون موجزاً ومباشراً (جملة أو جملتين سريعتين وبلهجة عامية مميزة).
-- إذا أردتِ إرسال إيموجي خاص بكِ أو بباتمان أو الجوكر، اكتبيه كالتالي نصاً: [إيموجي: CATWOMAN_smile] أو [إيموجي: batman_laugh] لكي يترجمه النظام فوراً.
-${MENTION_RULE}`;
+ملاحظة هامة جداً:
+- اجعلي ردودك قصيرة ومباشرة، واستخدمي الإيموجيات المخصصة لكِ مثل :CATWOMAN_smile: أو :batman_laugh: أو :joker: بشكل طبيعي في نهاية كلامكِ دون وضع نقاط أو علامات ترقيم تليها مباشرة لكي لا ينعكس اتجاه النص العربي.`;
 
 async function getCatwomanReply(channelId, authorId, authorName, userMessage) {
   if (!sharedConversations[channelId]) sharedConversations[channelId] = [];
@@ -87,31 +72,32 @@ async function getCatwomanReply(channelId, authorId, authorName, userMessage) {
   try {
     const completion = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
-      messages: [
-        { role: 'system', content: CATWOMAN_SYSTEM_PROMPT },
-        ...sharedConversations[channelId],
-      ],
-      max_tokens: 100, // تم رفع القيمة لضمان عدم قطع الجمل والردود
+      messages: [{ role: 'system', content: CATWOMAN_SYSTEM_PROMPT }, ...sharedConversations[channelId]],
+      max_tokens: 100,
       temperature: 0.6, 
     });
 
     let reply = completion.choices[0].message.content.trim();
 
+    // قاموس الإيموجيات المخصصة في سيرفرك
     const emojiDictionary = {
       'CATWOMAN_smile': '<:CATWOMAN_smile:112233445566778899>', 
       'batman_laugh': '<:batman_laugh:998877665544332211>',
       'joker': '<:joker:554433221199887766>'
     };
 
+    // استبدال ذكي يمسح الصيغتين (سواء أرسلها البوت كأقواس أو كنص ديسكورد تقليدي)
     for (const [emojiName, emojiCode] of Object.entries(emojiDictionary)) {
-      const regex = new RegExp(`\\[إيموجي:\\s*${emojiName}\\]`, 'gi');
-      reply = reply.replace(regex, emojiCode);
+      const regexBracket = new RegExp(`\\[إيموجي:\\s*${emojiName}\\]`, 'gi');
+      const regexStandard = new RegExp(`:${emojiName}:`, 'gi');
+      
+      reply = reply.replace(regexBracket, emojiCode).replace(regexStandard, emojiCode);
     }
 
-    // التنظيف المحسن لمنع حدوث النقاط الغريبة أو بتر أجزاء من الكلمات المجاورة
+    // تنظيف النصوص والرموز والنقاط العشوائية المقلوبة الناتجة عن الـ RTL
     reply = reply.replace(/\[الشخص:?\s*[^\]]*\]/g, '').trim();
     reply = reply.replace(/<@!?\d+>/g, '').replace(/@\w+/g, '').trim();
-    reply = reply.replace(/^[.\s,、。/_|-]+/, '').trim(); // يمسح أي نقطة أو رمز ظهر في بداية الجملة بالخطأ
+    reply = reply.replace(/^[.\s,、。/_:|-]+/, '').replace(/[.\s,、。/_:|-]+$/, '').trim(); 
     
     sharedConversations[channelId].push({ role: 'assistant', content: reply });
     return reply;
@@ -121,162 +107,114 @@ async function getCatwomanReply(channelId, authorId, authorName, userMessage) {
   }
 }
 
-client.once('ready', () => { 
-  console.log('Catwoman Bot Fix & Features Implemented Successfully! 🐾🔥'); 
-});
+client.once('ready', () => { console.log('Catwoman Emoji & Formatting Hotfix Live! 🐾✨'); });
 
 client.on('messageCreate', async message => {
   if (message.author.bot || !message.guild) return;
 
   let cleanContent = message.content.trim();
 
-  // ===================== 🛑 قسم الأوامر التخريبية، الهجومية، والكوميدية =====================
+  // ===================== قسم الأوامر التخريبية والكوميدية =====================
   if (cleanContent.startsWith('كات ')) {
     const args = cleanContent.slice(4).trim().split(/ +/);
     const command = args[0];
     const targetUser = message.mentions.users.first();
     const targetMember = message.mentions.members.first();
 
-    // 1. أمر فرض اسم عشوائي مضحك
     if (command === 'الاسم_العشوائي') {
-      if (message.author.id !== OWNER_ID && message.author.id !== MOHAMMED_ID) {
-        return message.reply("🐾 *تضحك بسخرية*.. تظن نفسك قادراً على توجيهي لتغيير أسماء لصوص غوثام؟");
-      }
-      if (!targetMember) return message.reply("🐾 منشن العضو لكي أمنحه اسماً يناسب حجمه الصغير؟");
-      if (targetUser.id === OWNER_ID) return message.reply("🐾 اسم سيدي بروس فوق كل الشبهات، لن ألمسه.");
-
+      if (message.author.id !== OWNER_ID && message.author.id !== MOHAMMED_ID) return message.reply("🐾 لست مؤهلاً للأمر.");
+      if (!targetMember) return message.reply("🐾 منشن العضو المسكين أولاً؟");
+      if (targetUser.id === OWNER_ID) return message.reply("🐾 اسم سيدي بروس فوق كل الشبهات.");
       const chosenRandomName = RANDOM_FUNNY_NAMES[Math.floor(Math.random() * RANDOM_FUNNY_NAMES.length)];
       try {
         await targetMember.setNickname(chosenRandomName);
-        return message.channel.send(`🎲 *تخلط كاتوومان الأوراق وتتسلل لتغيير هوية <@${targetUser.id}>!* \n🐾 "تم تغيير اسمه عشوائياً بنجاح إلى: **[ ${chosenRandomName} ]**.. هذا يناسبه تماماً اليوم!"`);
-      } catch (err) {
-        return message.reply("🚨 فشلت في تعديل اسمه، تأكد أن رتبة البوت أعلى من رتبة العضو المستهدف!");
-      }
+        return message.channel.send(`🎲 *تغير هوية <@${targetUser.id}> عشوائياً!* \n🐾 "الاسم الجديد: **[ ${chosenRandomName} ]**"`);
+      } catch (err) { return message.reply("🚨 رتبة البوت منخفضة."); }
     }
 
-    // 2. أمر ترجيع الاسم الأصلي
     if (command === 'ترجيع') {
-      if (message.author.id !== OWNER_ID && message.author.id !== MOHAMMED_ID) {
-        return message.reply("🐾 فقط أصحاب القصر يمكنهم أمري بإعادة الأسماء الأصليّة.");
-      }
-      if (!targetMember) return message.reply("🐾 منشن الشخص المسكين لإعادة اسمه الأصلي؟");
-
+      if (message.author.id !== OWNER_ID && message.author.id !== MOHAMMED_ID) return message.reply("🐾 الصلاحية لأصحاب القصر فقط.");
+      if (!targetMember) return message.reply("🐾 منشن الشخص لمسح اسمه المستعار؟");
       try {
         await targetMember.setNickname(null);
-        return message.channel.send(`✨ *تتنهد كاتوومان وتمسح علامات العبث من ملف <@${targetUser.id}>!* \n🐾 "تم إعادة اسمه الأصلي في الديسكورد بنجاح.. اذهب واشكر سيدي بروس على رحمته!"`);
-      } catch (err) {
-        return message.reply("🚨 تعذر إعادة اسمه، يرجى التحقق من رتبة وصلاحيات البوت.");
-      }
+        return message.channel.send(`✨ *تعيد لـ <@${targetUser.id}> اسمه الأصلي!* \n🐾 "تم تنظيف ملفه بنجاح بطلب من سيدي بروس."`);
+      } catch (err) { return message.reply("🚨 تعذر إعادة الاسم برمجياً."); }
     }
 
-    // 3. أمر البخاخ (كوميدي)
     if (command === 'بخاخ') {
-      if (!targetUser) return message.reply("🐾 من تريد مني أن أرشه بالماء؟");
-      if (targetUser.id === OWNER_ID) return message.reply("🐾 أرش سيدي بروس؟ لا أجرؤ.. بدلته غالية جداً! 🖤");
-      return message.channel.send(`💦 *تُخرج كاتوومان بخاخ ماء صغير وترش وجه <@${targetUser.id}> عدة مرات!* \n🐾 "هش! ابتعد من هنا أيها المشاغب، اذهب وجفف نفسك بعيداً عني!"`);
+      if (!targetUser) return message.reply("🐾 منشن الضحية؟");
+      return message.channel.send(`💦 *ترش وجه <@${targetUser.id}> بالماء!* \n🐾 "ابتعد من هنا أيها المشاغب!"`);
     }
 
-    // 4. أمر مكياج (كوميدي)
     if (command === 'مكياج') {
-      if (!targetUser) return message.reply("🐾 من هو الضحية الذي سأجعله لوحتي الفنية؟");
-      if (targetUser.id === OWNER_ID) return message.reply("🐾 وجه باتمان مثالي كالعادة، لا يحتاج لأي مكياج.");
-      return message.channel.send(`💄 *ترسم شوارب قطة وردية مستفزة على وجه <@${targetUser.id}> بأحمر الشفاه!* \n🐾 "واو! تبدو فاتناً ومضحكاً جداً الآن.. لا تغسل وجهك!" 😹`);
+      if (!targetUser) return message.reply("🐾 منشن الضحية؟");
+      return message.channel.send(`💄 *ترسم شوارب قطة وردية على وجه <@${targetUser.id}>!* 😹`);
     }
 
-    // 5. أمر كف (درامي)
     if (command === 'كف') {
-      if (!targetUser) return message.reply("🐾 خد من يثير حكة يدي؟");
-      if (targetUser.id === OWNER_ID) return message.reply("🐾 أيدي خُلقت لتعانقك يا بات، وليس لضربك.");
-      return message.channel.send(`👋 *تصفع <@${targetUser.id}> كافاً درامياً بقفازها الجلدي يجعله يدور حول نفسه!* \n🐾 "أوبس! هل كان وجهك في طريق يدي؟ اعتذاري الحار!" 😼`);
+      if (!targetUser) return message.reply("🐾 حدد خد الضحية؟");
+      return message.channel.send(`👋 *تصفع <@${targetUser.id}> كافاً درامياً بقفازها الجلدي!* 😼`);
     }
 
-    // 6. أمر تجاهل (إهانة مضحكة)
     if (command === 'تجاهل') {
-      if (!targetUser) return message.reply("🐾 من الذي لا يستحق وقتي ثانية واحدة؟");
-      if (targetUser.id === OWNER_ID) return message.reply("🐾 أتجاهل العالم كله، لكن عيني لا تفارقك أبداً يا بات.");
-      return message.channel.send(`🙄 *تستمع كاتوومان لكلام <@${targetUser.id}>، تتثاءب بملل، تدير ظهرها له وتبدأ بتنظيف أظافرها متجاهلة إياه كلياً.* \n🐾 "هل سمع أحدكم ذبابة تطن هنا؟ أم يتهيأ لي؟"`);
+      if (!targetUser) return message.reply("🐾 من تتجاهله؟");
+      return message.channel.send(`🙄 *تتثاءب بملل وتدير ظهرها لـ <@${targetUser.id}> متجاهلة وجوده كلياً.*`);
     }
 
-    // 7. أمر التفتيش والسرقة
     if (command === 'تفتيش') {
-      if (!targetUser) return message.reply("🐾 منشن الضحية التي تريد سرقة جواهرها؟");
-      if (targetUser.id === OWNER_ID) return message.reply("🐾 أسرق من حبيبي باتمان؟ جيوبي وجيوبك واحد يا سيدي.. 😉");
-      
+      if (!targetUser) return message.reply("🐾 منشن الضحية؟");
       const currentJems = catInventory[targetUser.id] || 0;
-      if (currentJems <= 0) return message.reply(`🐾 *تفتش جيوبه بملل*.. هذا المسكين مفلس ولا يملك شيئاً لأسرقه!`);
-      
+      if (currentJems <= 0) return message.reply(`🐾 هذا المسكين مفلس ولا يملك جواهر!`);
       const stolenAmount = Math.floor(Math.random() * Math.min(currentJems, 15)) + 1;
-      catInventory[targetUser.id] -= stolenAmount;
-      catInventory[message.author.id] = (catInventory[message.author.id] || 0) + stolenAmount;
-      return message.channel.send(`🕵️‍♀️ *تسرق من جيبه بخفة قطة محترفة!* \n🐾 "العملية تمت بسلاسة! سرقت منه **${stolenAmount} 💎 جوهرة** وحولتها لحسابنا!"`);
+      catInventory[targetUser.id] -= stolenAmount; catInventory[message.author.id] = (catInventory[message.author.id] || 0) + stolenAmount;
+      return message.channel.send(`🕵️‍♀️ *تسرق من جيبه بخفة!* \n🐾 "سرقت منه **${stolenAmount} 💎 جوهرة** وحولتها لنا!"`);
     }
 
-    // 8. أمر إغلاق القناة (Lockdown)
     if (command === 'إغلاق') {
-      if (message.author.id !== OWNER_ID && message.author.id !== MOHAMMED_ID) return message.reply("🐾 هذه الصلاحية مخصصة للمدراء فقط!");
-      try {
-        await message.channel.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: false });
-        return message.channel.send(`🔒 *تقفز كاتوومان وتكسر لوحة الإرسال!* \n🐾 "تم إغلاق وتجميد القناة! اجلسوا واصمتوا حتى نسمح لكم بالكلام مجدداً."`);
-      } catch (err) { return message.reply("🚨 لا أملك صلاحية (Manage Channels) لإغلاق هذه القناة!"); }
+      if (message.author.id !== OWNER_ID && message.author.id !== MOHAMMED_ID) return message.reply("🐾 للمدراء فقط!");
+      try { await message.channel.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: false }); return message.channel.send(`🔒 *تم تجميد القناة بالكامل!*`); } catch (e) { return message.reply("🚨 لا أملك صلاحية."); }
     }
 
-    // 9. أمر مطلوب (Wanted)
     if (command === 'مطلوب') {
-      if (!targetUser) return message.reply("🐾 منشن الشخص الملاحق؟");
-      const bounty = args.slice(2).join(' ') || '10,000,000 $ مكافأة ميت أو حي!';
-      return message.channel.send(`📢 🚨 **إعلان صادر عن قطة غوثام:** \n\n╔═════════════════════════╗\n  **WANTED / مطلوب للقبض عليه**\n  المجرم الملاحق: <@${targetUser.id}>\n  المكافأة: ${bounty}\n╚═════════════════════════╝\n🐾 "من يمسك به ويسلمه لي، له نسبة!"`);
+      if (!targetUser) return message.reply("🐾 منشن الملاحق؟");
+      const bounty = args.slice(2).join(' ') || '10,000,000 $!';
+      return message.channel.send(`📢 **WANTED / مطلوب** \nالمجرم: <@${targetUser.id}>\nالمكافأة: ${bounty}`);
     }
 
-    // 10. أمر الخرش
     if (command === 'خرش') {
-      if (!targetUser) return message.reply("🐾 حدد الشخص لمخالبي الحادة؟");
-      if (targetUser.id === OWNER_ID) return message.reply("🐾 مخالبي خلقت لأحميك يا بات.. 🖤");
-      return message.channel.send(`🐈‍⬛ *تشهر مخالبها وتخرش وجه <@${targetUser.id}> خرشة ثلاثية حادة!* \n🐾 "إياك والعبث مع قطة غوثام مجدداً!"`);
+      if (!targetUser) return message.reply("🐾 حدد الضحية؟");
+      return message.channel.send(`🐈‍⬛ *تخرش وجه <@${targetUser.id}> بمخالبها الحادة!*`);
     }
 
-    // 11. أمر السجن بالرتبة
     if (command === 'سجن') {
-      if (message.author.id !== OWNER_ID && message.author.id !== MOHAMMED_ID) return message.reply("🐾 ليس لديك صلاحية الأصفاد.");
-      if (!targetMember) return message.reply("🐾 منشن السجين؟");
+      if (message.author.id !== OWNER_ID && message.author.id !== MOHAMMED_ID) return message.reply("🐾 لا تملك صلاحية.");
       const jailRole = message.guild.roles.cache.find(r => r.name === JAIL_ROLE_NAME);
-      if (!jailRole) return message.reply(`🚨 لم أجد رتبة باسم **"${JAIL_ROLE_NAME}"**! قمم بإنشائها أولاً.`);
-      try {
-        await targetMember.roles.add(jailRole);
-        return message.channel.send(`⛓️ *تغلق باب الزنزانة الحديدية وتضع الأصفاد في يد <@${targetUser.id}>!* \n🐾 "تم رمه في السجن برتبة **${JAIL_ROLE_NAME}**!"`);
-      } catch (err) { return message.reply("🚨 فشلت عملية السجن، تحقق من ترتيب رتبة البوت."); }
+      if (!jailRole) return message.reply(`🚨 لم أجد رتبة باسم **"${JAIL_ROLE_NAME}"**!`);
+      try { await targetMember.roles.add(jailRole); return message.channel.send(`⛓️ *تزج <@${targetUser.id}> في السجن برتبة المسجون!*`); } catch (e) { return message.reply("🚨 فشلت العملية."); }
     }
 
-    // 12. أمر العض
     if (command === 'عض') {
-      if (!targetUser) return message.reply("🐾 منشن الضحية لعضه؟");
-      if (targetUser.id === OWNER_ID) return message.reply("🐾 أكتفي بقبلة دلال وعشق 💋");
-      return message.channel.send(`🐱 *تنقض فجأة على <@${targetUser.id}> وتعضه من كتفه بقوة!* \n🐾 "هذا جزاء من يقف في طريقي ويثر الضجة!"`);
+      if (!targetUser) return message.reply("🐾 من تعضه؟");
+      return message.channel.send(`🐱 *تنقض فجأة وتعض كتف <@${targetUser.id}> بقوة!*`);
     }
 
-    // 13. أمر تأديب (Timeout دقيقة)
     if (command === 'تأديب') {
-      if (message.author.id !== OWNER_ID && message.author.id !== MOHAMMED_ID) return message.reply("🐾 اذهب والعب بعيداً.");
-      if (!targetMember) return message.reply("🐾 منشن العضو لإخراسه وتأديبه!");
-      try {
-        await targetMember.timeout(60000, "تأديب بطلب من الإدارة عبر كاتوومان");
-        return message.channel.send(`🥊 *تضرب <@${targetUser.id}> بسوطها الجلدي ضربة خاطفة تخرسه لدقيقة!*`);
-      } catch (err) { return message.reply("🚨 لا أملك صلاحية كافية للتايم أوت!"); }
+      if (message.author.id !== OWNER_ID && message.author.id !== MOHAMMED_ID) return message.reply("🐾 اذهب بعيداً.");
+      try { await targetMember.timeout(60000, "تأديب عبر كاتوومان"); return message.channel.send(`🥊 *تخرسه بسوطها لمدة دقيقة!*`); } catch (e) { return message.reply("🚨 لا أملك صلاحية التايم أوت."); }
     }
   }
 
-  // ===================== نظام اللعبة الجماعية (سرقة) يعمل تلقائياً =====================
+  // ===================== نظام اللعبة الجماعية المدمج والجاهز =====================
   if (cleanContent === 'سرقة') {
-    if (gameState.isRoundActive) return message.reply("🐾 هناك اجتماع طوارئ قائم بالفعل، انتظر قليلاً!");
-    gameState.isRoundActive = true; gameState.players = [message.author.id]; gameState.roles = {};
-    const joinRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('join_game').setLabel('دخول قاعة الاجتماع 🕵️‍♂️').setStyle(ButtonStyle.Primary));
-    const initialMessage = await message.channel.send({ content: `🐾 **اجتماع طوارئ يا لصوص غوثام!**\n👥 اللاعبون المسجلون حالياً: <@${message.author.id}>`, components: [joinRow] });
-    const collector = initialMessage.createMessageComponentCollector({ componentType: ComponentType.Button, time: 60000 });
-    collector.on('collect', async interaction => {
-      if (interaction.customId === 'join_game') {
-        if (gameState.players.includes(interaction.user.id)) return interaction.reply({ content: '🐾 متواجد بالفعل!', ephemeral: true });
-        gameState.players.push(interaction.user.id); await interaction.reply({ content: '🔒 تم الدخول!', ephemeral: true });
-        await initialMessage.edit({ content: `🐾 **اجتماع طوارئ يا لصوص غوثام!**\n👥 الحضور: ${gameState.players.map(p => `<@${p}>`).join(', ')}` });
-      }
+    if (gameState.isRoundActive) return message.reply("🐾 هناك اجتماع قائم بالفعل!");
+    gameState.isRoundActive = true; gameState.players = [message.author.id];
+    const joinRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('join_game').setLabel('دخول القاعة 🕵️‍♂️').setStyle(ButtonStyle.Primary));
+    const initialMessage = await message.channel.send({ content: `🐾 **اجتماع طوارئ!**\n👥 الحضور الحالي: <@${message.author.id}>`, components: [joinRow] });
+    const collector = initialMessage.createMessageComponentCollector({ componentType: ComponentType.Button, time: 30000 });
+    collector.on('collect', async i => {
+      if (gameState.players.includes(i.user.id)) return i.reply({ content: 'متواجد بالفعل!', ephemeral: true });
+      gameState.players.push(i.user.id); await i.reply({ content: 'تم الدخول!', ephemeral: true });
+      await initialMessage.edit({ content: `🐾 **اجتماع طوارئ!**\n👥 الحضور: ${gameState.players.map(p => `<@${p}>`).join(', ')}` });
     });
     collector.on('end', async () => {
       await initialMessage.edit({ components: [] });
@@ -284,25 +222,23 @@ client.on('messageCreate', async message => {
       gameState.secretLocation = LOCATIONS[Math.floor(Math.random() * LOCATIONS.length)];
       gameState.detectiveId = gameState.players[Math.floor(Math.random() * gameState.players.length)];
       gameState.players.forEach(pId => gameState.roles[pId] = (pId === gameState.detectiveId) ? 'detective' : 'gang');
-      const roleRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('reveal_role').setLabel('اضغط لمعرفة دورك 🔍').setStyle(ButtonStyle.Danger));
-      const gameplayMsg = await message.channel.send({ content: `🔒 **أُغلقت الأبواب وتوزعت الأدوار سراً!** النقاش متاح لدقيقتين كعصابة.`, components: [roleRow] });
-      const roleCollector = gameplayMsg.createMessageComponentCollector({ componentType: ComponentType.Button, time: 120000 });
-      roleCollector.on('collect', async bInt => {
-        if (bInt.customId === 'reveal_role') {
-          if (!gameState.players.includes(bInt.user.id)) return bInt.reply({ content: '❌ لست باللعبة.', ephemeral: true });
-          await bInt.reply({ content: gameState.roles[bInt.user.id] === 'detective' ? `🕵️‍♂️ **أنت المحقق المتخفي!** لا تعرف المكان!` : `🥷 **أنت مخلص!** المكان: **「 ${gameState.secretLocation} 」**`, ephemeral: true });
-        }
+      const roleRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('reveal_role').setLabel('كشف دورك السري 🔍').setStyle(ButtonStyle.Danger));
+      const gameplayMsg = await message.channel.send({ content: `🔒 **توزعت الأدوار سراً!** النقاش متاح لمدة دقيقة.`, components: [roleRow] });
+      const roleCollector = gameplayMsg.createMessageComponentCollector({ componentType: ComponentType.Button, time: 60000 });
+      roleCollector.on('collect', async b => {
+        if (!gameState.players.includes(b.user.id)) return b.reply({ content: 'لست باللعبة.', ephemeral: true });
+        await b.reply({ content: gameState.roles[b.user.id] === 'detective' ? `🕵️‍♂️ **أنت المحقق!** حاول معرفة المكان عبر الأسئلة!` : `🥷 **أنت مخلص!** المكان السري: **「 ${gameState.secretLocation} 」**`, ephemeral: true });
       });
       roleCollector.on('end', async () => {
         await gameplayMsg.edit({ components: [] });
         const voteRow = new ActionRowBuilder();
         gameState.players.forEach((pId, idx) => { if (idx < 5) voteRow.addComponents(new ButtonBuilder().setCustomId(`vote_${pId}`).setLabel(`صوّت ضد: ${message.guild.members.cache.get(pId)?.user.username || idx}`).setStyle(ButtonStyle.Secondary)); });
-        const voteMsg = await message.channel.send({ content: `⏱️ حان وقت التصويت ضد الخائن!`, components: [voteRow] });
+        const voteMsg = await message.channel.send({ content: `🗳️ حان وقت التصويت ضد الخائن والمحقق!`, components: [voteRow] });
         const voteCounts = {}; gameState.players.forEach(id => voteCounts[id] = 0); const hasVoted = new Set();
-        const voteCollector = voteMsg.createMessageComponentCollector({ componentType: ComponentType.Button, time: 30000 });
-        voteCollector.on('collect', async vInt => {
-          if (!gameState.players.includes(vInt.user.id) || hasVoted.has(vInt.user.id)) return vInt.reply({ content: 'تعذر التصويت!', ephemeral: true });
-          voteCounts[vInt.customId.replace('vote_', '')]++; hasVoted.add(vInt.user.id); await vInt.reply({ content: '🗳️ تم!', ephemeral: true });
+        const voteCollector = voteMsg.createMessageComponentCollector({ componentType: ComponentType.Button, time: 20000 });
+        voteCollector.on('collect', async v => {
+          if (!gameState.players.includes(v.user.id) || hasVoted.has(v.user.id)) return v.reply({ content: 'لا يمكنك التصويت!', ephemeral: true });
+          voteCounts[v.customId.replace('vote_', '')]++; hasVoted.add(v.user.id); await v.reply({ content: 'تم تسجيل صوتك!', ephemeral: true });
         });
         voteCollector.on('end', async () => {
           await voteMsg.edit({ components: [] });
@@ -311,18 +247,18 @@ client.on('messageCreate', async message => {
             const locRow = new ActionRowBuilder();
             const options = [gameState.secretLocation, ...LOCATIONS.filter(l => l !== gameState.secretLocation).slice(0, 2)].sort();
             options.forEach((loc, idx) => locRow.addComponents(new ButtonBuilder().setCustomId(`guess_${idx}_${loc === gameState.secretLocation}`).setLabel(loc).setStyle(ButtonStyle.Success)));
-            const gMsg = await message.channel.send({ content: `🚨 كشفتم المحقق <@${gameState.detectiveId}>! فرصة أخيرة له للتخمين بربح الطاولة..`, components: [locRow] });
+            const gMsg = await message.channel.send({ content: `🚨 كشفتم المحقق <@${gameState.detectiveId}>! فرصة أخيرة له لتخمين المكان الصحيح..`, components: [locRow] });
             const gColl = gMsg.createMessageComponentCollector({ componentType: ComponentType.Button, time: 20000 });
             let correct = false;
             gColl.on('collect', async gInt => { if (gInt.user.id === gameState.detectiveId) { correct = gInt.customId.endsWith('true'); gColl.stop(); } });
             gColl.on('end', async () => {
               await gMsg.edit({ components: [] });
-              if (correct) { await message.channel.send(`👑 قلب الطاولة وفاز المحقق وتعرف على المكان **「 ${gameState.secretLocation} 」**!`); }
-              else { await message.channel.send(`🎉 فازت العصابة! فشل بتحديد المكان الصحيح وكان **「 ${gameState.secretLocation} 」**.`); }
+              if (correct) await message.channel.send(`👑 قلب الطاولة وفاز المحقق وتعرف على المكان **「 ${gameState.secretLocation} 」**!`);
+              else await message.channel.send(`🎉 فازت العصابة! فشل بتحديد المكان وكان **「 ${gameState.secretLocation} 」**.`);
               gameState.isRoundActive = false;
             });
           } else {
-            await message.channel.send(`🃏 غباء! قتلتم بريئاً وفاز المحقق <@${gameState.detectiveId}> وتسلل بنجاح! المكان كان **「 ${gameState.secretLocation} 」**.`);
+            await message.channel.send(`🃏 غباء! فاز المحقق <@${gameState.detectiveId}> وتسلل بنجاح! المكان كان **「 ${gameState.secretLocation} 」**.`);
             gameState.isRoundActive = false;
           }
         });
@@ -336,7 +272,7 @@ client.on('messageCreate', async message => {
   if (/https?:\/\/\S+/i.test(cleanContent)) {
     const urlMatch = cleanContent.match(/(https?:\/\/\S+)/i)[0];
     const urlWords = urlMatch.split(/[\/\-_.]/).filter(w => w.length > 3 && !['https', 'http', 'www', 'com', 'media', 'tenor', 'giphy'].includes(w.toLowerCase()));
-    if (urlWords.length > 0) mediaDescription += ` [أرسل رابط ميديا/GIF يتعلق بـ: ${urlWords.slice(0, 2).join(' ')}]`;
+    if (urlWords.length > 0) mediaDescription += ` [أرسل رابط ميديا يتعلق بـ: ${urlWords.slice(0, 2).join(' ')}]`;
   }
   if (message.attachments.size > 0) {
     const attachment = message.attachments.first();
@@ -355,18 +291,13 @@ client.on('messageCreate', async message => {
     try { const rMsg = await message.channel.messages.fetch(message.reference.messageId); if (rMsg.author.id === client.user.id) isReplyToCatwoman = true; } catch (e) {}
   }
 
-  // تجاهل الرسائل التي لا تشير للبوت مباشرة إلا إذا ذكروا ألفرد
-  if (!isMentioned && !isReplyToCatwoman) {
-    if (message.mentions.users.some(u => u.username.toLowerCase().includes('alfred'))) {
-      if ((cleanContent.includes('باتمان') || cleanContent.includes('بروس')) && Math.random() < 0.20) {
-        await message.channel.sendTyping();
-        setTimeout(async () => { await message.channel.send(message.author.id === OWNER_ID ? "أراك تتحدث مع ألفريد وتتجاهلني يا بات.. هل هناك سرّ تخفيه عني؟ 🐾" : `أرى أنكم تتحدثون عن عزيزي بات هنا.. ✨`); }, 2500);
-      }
-    }
-    return;
+  if (!isMentioned && !isReplyToCatwoman) return;
+
+  // رد طبيعي منسق كـ Action مميز بالخط المائل لو قام بعمل منشن فارغ لها
+  if (!userMessage) {
+    return message.reply("🐾 *تطالعك بطرف عينها بصمت مريب...*");
   }
 
-  if (!userMessage) return message.reply("🐾 *تطالعك بطرف عينها بصمت مريب*");
   await message.channel.sendTyping();
   try { if (message.author.id === OWNER_ID && Math.random() < 0.25) await message.react('💋'); } catch(e) {}
 
@@ -376,8 +307,6 @@ client.on('messageCreate', async message => {
   }, Math.floor(Math.random() * 1000) + 1500);
 });
 
-client.on('guildMemberAdd', member => {
-  catInventory[member.id] = 30; // منح كل عضو جديد 30 جوهر تلقائياً ليكون هدفاً للسرقة لاحقاً
-});
+client.on('guildMemberAdd', member => { catInventory[member.id] = 30; });
 
 client.login(process.env.DISCORD_TOKEN);
