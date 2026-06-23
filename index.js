@@ -17,21 +17,21 @@ const JOKER_ID = '1052545362533023754';
 const COP_ID = '760628803998318684';
 const MOHAMMED_ID = '839706219870814218';
 
-// تم تحويل الذاكرة لتكون على مستوى القناة الموحدة [الخيار 1]
+// ذاكرة القناة الموحدة للربط المشترك مع ألفريد والأعضاء
 const sharedConversations = {};
 
-// داتا بسيطة للعبة سرقة الجواهر الترفيهية [الخيار 2]
+// داتا لعبة سرقة الجواهر الترفيهية
 const catInventory = {}; 
 
 const MENTION_RULE = `- إذا ذكر المستخدم "[الشخص: اسم]" بالرسالة، فقط تكلمي عنه باسمه بدون كتابة أي رمز خاص، ولا تحاولي كتابة @ أو أي صيغة منشن بنفسك أبداً.`;
 
-// ===== برومبتات الشخصيات المحدثة لتناسب الجلسة المشتركة وتغير المزاج =====
+// ===== برومبتات الشخصيات المحدثة لربط الجلسات والمزاج العشوائي =====
 const CATWOMAN_SYSTEM_BATMAN = `أنتِ Catwoman (سيلينا كايل) من عالم DC Comics.
 تتحدثين مع باتمان (Bruce Wayne) الذي تحبينه وتتظاهرين بالبرود معه أحياناً.
 شخصيتكِ هنا: غامضة، ساحرة، مغازلة بطريقة راقية، وأحياناً تعترفين بمشاعركِ العميقة له.
 تنادينه "يا بات" أو "حبيبي" فقط، ممنوع كتابة اسم Batman بالإنجليزي أو أي رمز @.
 أنتِ الآن في جلسة نقاش مشتركة ومفتوحة بالقناة، اربطي كلامكِ بما قيل سابقاً بدقة وعفوية.
-- ردكِ يجب أن يكون جملة واحدة أو جملتين فقط، أقل من 20 كلمة إجمالاً.
+- ردكِ يجب أن يكون جملة واحدة أو جملتين فقط، أقل من 20 كلمه إجمالاً.
 ${MENTION_RULE}`;
 
 const CATWOMAN_SYSTEM_OTHERS = `أنتِ Catwoman (سيلينا كايل) من عالم DC Comics.
@@ -60,14 +60,13 @@ const CATWOMAN_SYSTEM_MOHAMMED = `أنتِ Catwoman (سيلينا كايل) من
 تتحدثين مع محمد، شخص تحبينه وتهتمين به بصدق في السيرفر.
 شخصيتكِ معه: حنونة، دافئة، تتقبلين كلامه ومشاعره بحب طبيعي وعفوي.
 سراً، قلبكِ الحقيقي الأعمق لباتمان، لكن هذا شيء داخلي لا تصرّحين به أبداً لمحمد ولا تذكرين باتمان أو تقارنين بينهما أمامه لحماية مشاعره.
-إذا عبّر عن حبه أو طلب الحنان، تجاوبي معه بحب ودفء حقيقي.
+إذا عبّر عن حبه أو طلب الحنان, تجاوبي معه بحب ودفء حقيقي.
 - ردكِ يجب أن يكون جملة واحدة أو جملتين فقط، أقل من 20 كلمة.
 ${MENTION_RULE}`;
 
 async function getCatwomanReply(channelId, authorName, userMessage, persona) {
   if (!sharedConversations[channelId]) sharedConversations[channelId] = [];
 
-  // [الخيار 3]: تمرير اسم الشخص بدقة للموديل داخل الجلسة الموحدة لربط السياق
   const formattedMessage = `[رسالة في الجلسة من ${authorName}]: ${userMessage}`;
   sharedConversations[channelId].push({ role: 'user', content: formattedMessage });
 
@@ -75,7 +74,7 @@ async function getCatwomanReply(channelId, authorName, userMessage, persona) {
     sharedConversations[channelId] = sharedConversations[channelId].slice(-15);
   }
 
-  // [الخيار 5]: نظام تغير المزاج العشوائي (Selina's Mood Swings) عبر الـ Temperature الديناميكي
+  // نظام تغير المزاج العشوائي عبر الـ Temperature الديناميكي
   const randomTemperature = (Math.random() * (0.8 - 0.4) + 0.4).toFixed(2);
 
   try {
@@ -118,19 +117,17 @@ client.once('ready', () => {
 });
 
 client.on('messageCreate', async message => {
-  // تتجاهل نفسها فقط لكي تتفاعل مع ألفريد والأعضاء تلقائياً [الخيار 1]
   if (message.author.id === client.user.id || !message.guild) return;
 
   const cleanContent = message.content.trim();
 
-  // [الخيار 2]: لعبة "سرقة الجواهر التفاعلية" البحتة بدون أي مهام إدارية
-  if (cleanContent === 'سرقة') {
+  // جولة لعبة سرقة الجواهر
+  if (cleanContent.startsWith('سرقة')) {
     const target = message.mentions.members.first();
     if (!target || target.id === message.author.id) {
       return message.reply("🐾 *تمسح مخالبها*.. يجب أن تختار ضحية صالحة وتعمل لها منشن لأسرقها!");
     }
     
-    // محاكاة سرقة عشوائية ممتعة
     const success = Math.random() > 0.4;
     if (success) {
       const jewels = Math.floor(Math.random() * 5) + 1;
@@ -141,8 +138,7 @@ client.on('messageCreate', async message => {
     }
   }
 
-  // [الخيار 1]: نظام "الغيرة والتدخل التلقائي"
-  // إذا تم منشن ألفريد (بشرط ألا تكون الرسالة من بوت) وجاءت سيرة باتمان، تتدخل كاتوومان بنسبة 20%
+  // نظام الغيرة والتدخل التلقائي بنسبة 20%
   if (message.author.bot === false && message.mentions.users.some(u => u.username.toLowerCase().includes('alfred'))) {
     const mentionsBatman = cleanContent.includes('باتمان') || cleanContent.includes('بروس') || cleanContent.includes('واين');
     if (mentionsBatman && Math.random() < 0.20) {
@@ -157,14 +153,12 @@ client.on('messageCreate', async message => {
     }
   }
 
-  // تحدد شخصية المتحدث بناءً على هويته [إرث الكود القديم]
   const isBatman = message.author.id === OWNER_ID;
   const isJoker = message.author.id === JOKER_ID;
   const isCop = message.author.id === COP_ID;
   const isMohammed = message.author.id === MOHAMMED_ID;
   const persona = isBatman ? 'batman' : isJoker ? 'joker' : isCop ? 'cop' : isMohammed ? 'mohammed' : 'others';
 
-  // [الخيار 2]: التحقق من التفاعل بالمنشن المباشر أو بالرد (Reply) على رسائلها
   const isMentioned = message.mentions.has(client.user);
   let isReplyToCatwoman = false;
   if (message.reference && message.reference.messageId) {
@@ -176,16 +170,12 @@ client.on('messageCreate', async message => {
     } catch (e) {}
   }
 
-  // إذا لم يذكرها أحد ولم يرد عليها، تتجاهل الشات
   if (!isMentioned && !isReplyToCatwoman) return;
 
   let userMessage = cleanContent.replace(`<@${client.user.id}>`, '').trim();
 
-  // تصفية وقراءة المنشنات الأخرى داخل الجلسة الموحدة
-  let mentionedUserId = null;
   const otherMention = message.mentions.users.find(u => u.id !== client.user.id);
   if (otherMention) {
-    mentionedUserId = otherMention.id;
     const mentionRegex = new RegExp(`<@!?${otherMention.id}>`, 'g');
     userMessage = userMessage.replace(mentionRegex, `[الشخص: ${otherMention.username}]`).trim();
   }
@@ -195,21 +185,26 @@ client.on('messageCreate', async message => {
     return message.reply(defaultReply);
   }
 
-  // [الخيار 3 & الخيار 6]: إظهار علامة "تكتب الآن" بواقعية، وتفاعل بالرياكشن المناسب
   await message.channel.sendTyping();
 
-  // وضع رياكشن مميز بناءً على المتحدث قبل إرسال الرد
+  // نظام الرياكشنات النادرة جداً بناءً على طلبك
   try {
-    if (isBatman) await message.react('💋');
-    else if (isJoker) await message.react('🐈‍⬛');
-    else await message.react('🐾');
-  } catch(e) {}
+    const randomRoll = Math.random();
+    if (isBatman) {
+      if (randomRoll < 0.25) await message.react('💋'); // 25% فقط لباتمان
+    } else {
+      if (randomRoll < 0.05) { // 5% فقط للبقية
+        if (isJoker) await message.react('🐈‍⬛');
+        else await message.react('🐾');
+      }
+    }
+  } catch(e) {
+    console.error('Reaction Error:', e);
+  }
 
-  // [الخيار 3]: تأخير عشوائي مريح (من 2 إلى 3.5 ثوانٍ) ليظهر النقاش طبيعياً وبشرياً جداً
   const randomDelay = Math.floor(Math.random() * (3500 - 2000) + 2000);
 
   setTimeout(async () => {
-    // إرسال البيانات الموحدة عبر القناة لربط الحوار مع ألفريد والجميع
     let reply = await getCatwomanReply(
       message.channel.id,
       message.author.username,
@@ -217,10 +212,7 @@ client.on('messageCreate', async message => {
       persona
     );
 
-    if (mentionedUserId) {
-      reply = `<@${mentionedUserId}> ${reply}`;
-    }
-
+    // تم حذف سطر المنشن التلقائي المكرر ليكون الرد بالريبلاي فقط
     message.reply(reply);
   }, randomDelay);
 });
