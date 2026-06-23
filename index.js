@@ -60,7 +60,7 @@ const CATWOMAN_SYSTEM_MOHAMMED = `أنتِ Catwoman (سيلينا كايل) من
 تتحدثين مع محمد، شخص تحبينه وتهتمين به بصدق في السيرفر.
 شخصيتكِ معه: حنونة، دافئة، تتقبلين كلامه ومشاعره بحب طبيعي وعفوي.
 سراً، قلبكِ الحقيقي الأعمق لباتمان، لكن هذا شيء داخلي لا تصرّحين به أبداً لمحمد ولا تذكرين باتمان أو تقارنين بينهما أمامه لحماية مشاعره.
-إذا عبّر عن حبه أو طلب الحنان, تجاوبي معه بحب ودفء حقيقي.
+إذا عبّر عن حبه أو طلب الحنان، تجاوبي معه بحب ودفء حقيقي.
 - ردكِ يجب أن يكون جملة واحدة أو جملتين فقط، أقل من 20 كلمة.
 ${MENTION_RULE}`;
 
@@ -74,7 +74,6 @@ async function getCatwomanReply(channelId, authorName, userMessage, persona) {
     sharedConversations[channelId] = sharedConversations[channelId].slice(-15);
   }
 
-  // نظام تغير المزاج العشوائي عبر الـ Temperature الديناميكي
   const randomTemperature = (Math.random() * (0.8 - 0.4) + 0.4).toFixed(2);
 
   try {
@@ -121,7 +120,7 @@ client.on('messageCreate', async message => {
 
   const cleanContent = message.content.trim();
 
-  // جولة لعبة سرقة الجواهر
+  // جولة لعبة سرقة الجواهر (تعمل مباشرة بمجرد بدء الرسالة بكلمة سرقة)
   if (cleanContent.startsWith('سرقة')) {
     const target = message.mentions.members.first();
     if (!target || target.id === message.author.id) {
@@ -187,13 +186,13 @@ client.on('messageCreate', async message => {
 
   await message.channel.sendTyping();
 
-  // نظام الرياكشنات النادرة جداً بناءً على طلبك
+  // نظام الرياكشنات النادرة جداً (25% لباتمان، 5% للبقية)
   try {
     const randomRoll = Math.random();
     if (isBatman) {
-      if (randomRoll < 0.25) await message.react('💋'); // 25% فقط لباتمان
+      if (randomRoll < 0.25) await message.react('💋'); 
     } else {
-      if (randomRoll < 0.05) { // 5% فقط للبقية
+      if (randomRoll < 0.05) { 
         if (isJoker) await message.react('🐈‍⬛');
         else await message.react('🐾');
       }
@@ -212,7 +211,7 @@ client.on('messageCreate', async message => {
       persona
     );
 
-    // تم حذف سطر المنشن التلقائي المكرر ليكون الرد بالريبلاي فقط
+    // تم حذف سطر المنشن التلقائي المكرر ليكون الرد بالريبلاي النظيف فقط
     message.reply(reply);
   }, randomDelay);
 });
