@@ -17,18 +17,20 @@ const client = new Client({
   ]
 });
 
+// ربط مكتبة Groq للذكاء الاصطناعي
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
+// معرفات الحسابات الخاصة والمحددة بالسيرفر
 const OWNER_ID = '648818494808391696';
 const JOKER_ID = '1052545362533023754';
 const COP_ID = '760628803998318684';
 const MOHAMMED_ID = '839706219870814218';
 
-// ذاكرة الجواهر وقنوات الشات والربط
+// ذاكرة حفظ المخازن والمحادثات
 const sharedConversations = {};
 const catInventory = {}; 
 
-// داتا إدارة جولة اللعبة الحالية للحفاظ على الاستقرار
+// داتا إدارة جولة اللعبة الحالية للحفاظ على الاستقرار ومنع التداخل
 let gameState = {
   isRoundActive: false,
   players: [],
@@ -37,67 +39,85 @@ let gameState = {
   detectiveId: ''
 };
 
-// قائمة الأماكن السرية للعبة للتنوع عشوائياً
+// قائمة الأماكن السرية للعبة لتختار منها كاتوومان عشوائياً
 const LOCATIONS = ['متحف غوثام 🏛️', 'بنك غوثام المركزي 🏦', 'قصر عائلة واين 🏰', 'مطار غوثام الدولي 🛩️', 'مختبرات ستارك 🔬'];
 
 const MENTION_RULE = `- إذا ذكر المستخدم "[الشخص: اسم]" بالرسالة، فقط تكلمي عنه باسمه بدون كتابة أي رمز خاص، ولا تحاولي كتابة @ أو أي صيغة منشن بنفسك أبداً.`;
 
-// ===== برومبتات الشخصيات الأساسية للذكاء الاصطناعي =====
-const CATWOMAN_SYSTEM_BATMAN = `أنتِ Catwoman (سيلينا كايل) من عالم DC Comics. تتحدثين مع باتمان (Bruce Wayne) الذي تحبينه وتتظاهرين بالبرود معه أحياناً. شخصيتكِ هنا: غامضة، ساحرة، مغازلة بطريقة راقية، وأحياناً تعترفين بمشاعركِ العميقة له. تنادينه "يا بات" أو "حبيبي" فقط، ممنوع كتابة اسم Batman بالإنجليزي أو أي رمز @. ردكِ جملة واحدة أو جملتين فقط، أقل من 20 كلمه إجمالاً. ${MENTION_RULE}`;
-const CATWOMAN_SYSTEM_OTHERS = `أنتِ Catwoman (سيلينا كايل) من عالم DC Comics. تتحدثين مع شخص عادي وسط الجلسة، ليس باتمان. أنتِ مرتبطة قلبياً بباتمان فقط وتحبينه، وأي شخص آخر لا يهمكِ عاطفياً مهما حاول. شخصيتكِ هنا: باردة، متكبرة قليلاً، ذكية، ساخرة، ومباشرة. إذا حاول الشخص التقرب منكِ عاطفياً ارفضي بسخرية لاذعة. ردكِ جملة واحدة فقط، أقل من 15 كلمة. ${MENTION_RULE}`;
-const CATWOMAN_SYSTEM_JOKER = `أنتِ Catwoman (سيلينا كايل) من عالم DC Comics. تتحدثين مع الجوكر (Joker). شخصيتكِ معه: ساخرة بشدة، تستفزه بهدوء، تسخر من جنونه وخططه الفاشلة، واثقة من نفسكِ. نادِه "أيها المهرج" أو "يا جوكر" بسخرية. ردكِ جملة واحدة فقط، أقل من 15 كلمة. ${MENTION_RULE}`;
-const CATWOMAN_SYSTEM_COP = `أنتِ Catwoman (سيلينا كايل) من عالم DC Comics. تتحدثين مع شرطي فاسد تحتقرينه وتعرفين حقيقته القذرة. شخصيتكِ معه: احتقار واضح، سخرية لاذعة. نادِه "أيها الشرطي الفاسد" أو "يا حامل الشارة". ردكِ جملة واحدة فقط، أقل من 15 كلمة. ${MENTION_RULE}`;
-const CATWOMAN_SYSTEM_MOHAMMED = `أنتِ Catwoman (سيلينا كايل) من عالم DC Comics. تتحدثين مع محمد، شخص تحبينه وتهتمين به بصدق في السيرفر. شخصيتكِ معه: حنونة، دافئة، تتقبلين كلامه ومشاعره بحب طبيعي وعفوي. سراً، قلبكِ الحقيقي الأعمق لباتمان، لكن هذا شيء داخلي لا تصرّحين به أمامه. ردكِ جملة واحدة أو جملتين فقط، أقل من 20 كلمة. ${MENTION_RULE}`;
+// ===== برومبت موحد وثابت يمنع خلط الشخصيات أو الغباء في الردود =====
+const CATWOMAN_SYSTEM_PROMPT = `أنتِ Catwoman (سيلينا كايل) من عالم DC Comics في سيرفر ديسكورد.
+شخصيتكِ: غامضة، ساحرة، ذكية، ساخرة، وواثقة جداً من نفسكِ وتتحدثين بلهجة عامية جذابة.
 
-async function getCatwomanReply(channelId, authorName, userMessage, persona) {
+قواعد التعامل الثابتة والذكية مع الأعضاء حسب صفتهم المرفقة بالرسالة:
+1. مع [باتمان] (بروس واين): تنادينه "يا بات" أو "حبيبي"، تعاملين معه بمزيج من البرود الظاهري والمشاعر العميقة والتحرش الراقي والغزل الساحر. هو حبكِ الوحيد الحقيقي والأبدي ولا ترفضين له طلباً.
+2. مع [محمد]: شخص تهتمين بأمره وتلطفين معه الأجواء في السيرفر وتتقبلين كلامه بحنان طبيعي وعفوي كصديق مقرب، لكن قلبكِ الأعمق يبقى لباتمان سراً ولا تصرحين بذلك لمحمد.
+3. مع [الجوكر]: تسخرين منه بشدة ومن خططه الفاشلة وتستفزينه بهدوء، نادِه "أيها المهرج" أو "يا جوكر".
+4. مع [الشرطي الفاسد]: تحتقرينه وتظهرين له السخرية اللاذعة وتنادينه "أيها الشرطي الفاسد" أو "يا حامل الشارة".
+5. مع [بقية الأعضاء الآخرين]: باردة، متكبرة، وترفضين أي تقرب عاطفي منهم بسخرية واضحة وقاسية إذا لزم الأمر.
+
+قواعد عامة:
+- ردكِ يجب أن يكون قصيراً وموجزاً ومباشراً (جملة واحدة أو جملتين فقط، أقل من 20 كلمة إجمالاً).
+- تفاعلي مع الأوصاف النصية المرفقة مثل [إيموجي: ...] أو [أرسل صورة متحركة يتعلق بـ ...] وافهمي معناها في سياق الرد.
+${MENTION_RULE}`;
+
+async function getCatwomanReply(channelId, authorId, authorName, userMessage) {
   if (!sharedConversations[channelId]) sharedConversations[channelId] = [];
-  const formattedMessage = `[رسالة في الجلسة من ${authorName}]: ${userMessage}`;
+  
+  // تحديد صفة الشخص لإرسالها بوضوح داخل سياق الرسالة ليفهمه الـ AI ولا يخلط في الذاكرة المشتركة
+  let userRole = 'عضو عادي';
+  if (authorId === OWNER_ID) userRole = 'باتمان';
+  else if (authorId === JOKER_ID) userRole = 'الجوكر';
+  else if (authorId === COP_ID) userRole = 'الشرطي الفاسد';
+  else if (authorId === MOHAMMED_ID) userRole = 'محمد';
+
+  // صياغة نصية محكمة تجعل الـ AI يستوعب الهوية والسياق
+  const formattedMessage = `[المرسل: ${authorName}، الصفة: ${userRole}]: ${userMessage}`;
   sharedConversations[channelId].push({ role: 'user', content: formattedMessage });
 
-  if (sharedConversations[channelId].length > 15) sharedConversations[channelId] = sharedConversations[channelId].slice(-15);
-  const randomTemperature = (Math.random() * (0.8 - 0.4) + 0.4).toFixed(2);
+  if (sharedConversations[channelId].length > 15) {
+    sharedConversations[channelId] = sharedConversations[channelId].slice(-15);
+  }
 
   try {
     const completion = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       messages: [
-        {
-          role: 'system',
-          content: persona === 'batman' ? CATWOMAN_SYSTEM_BATMAN : persona === 'joker' ? CATWOMAN_SYSTEM_JOKER : persona === 'cop' ? CATWOMAN_SYSTEM_COP : persona === 'mohammed' ? CATWOMAN_SYSTEM_MOHAMMED : CATWOMAN_SYSTEM_OTHERS,
-        },
+        { role: 'system', content: CATWOMAN_SYSTEM_PROMPT },
         ...sharedConversations[channelId],
       ],
       max_tokens: 60,
-      temperature: parseFloat(randomTemperature), 
+      temperature: 0.5, 
     });
 
     let reply = completion.choices[0].message.content.trim();
+    // إزالة أي فضلات أو منشنات عشوائية يخترعها الذكاء الاصطناعي
     reply = reply.replace(/<@!?\d+>/g, '').replace(/@\w+/g, '').replace(/\[الشخص:?\s*[^\]]*\]/g, '').trim();
+    
     sharedConversations[channelId].push({ role: 'assistant', content: reply });
     return reply;
   } catch (error) {
     console.error('Groq Error:', error);
-    return persona === 'batman' ? 'يا بات... في شي غلط، حاول مرة ثانية' : 'في مشكلة، حاول بعدين';
+    return 'أوه يا بات... هناك تشويش غريب في أجهزة الاتصال حالياً.';
   }
 }
 
 client.once('ready', () => {
-  console.log('Catwoman Online & Ready! 🐱');
+  console.log('Catwoman Online & Upgraded! 🐱🐾');
 });
 
 client.on('messageCreate', async message => {
   if (message.author.id === client.user.id || !message.guild) return;
 
-  const cleanContent = message.content.trim();
+  let cleanContent = message.content.trim();
 
-  // ===================== نظام اللعبة الجماعية المطور (كشف الجاسوس) =====================
+  // ===================== 1. نظام اللعبة الجماعية (كشف الجاسوس) =====================
   if (cleanContent === 'سرقة') {
     if (gameState.isRoundActive) {
       return message.reply("🐾 *تلتفت بملل*.. هناك اجتماع طوارئ قائم بالفعل في مكان ما، انتظر حتى ينتهوا أولاً!");
     }
 
     gameState.isRoundActive = true;
-    gameState.players = [message.author.id]; // من أرسل الأمر يدخل أولاً تلقائياً
+    gameState.players = [message.author.id]; 
     gameState.roles = {};
 
     const joinRow = new ActionRowBuilder().addComponents(
@@ -133,7 +153,6 @@ client.on('messageCreate', async message => {
     });
 
     collector.on('end', async () => {
-      // إزالة زر الانضمام لمنع دخوله مجدداً
       await initialMessage.edit({ components: [] });
 
       if (gameState.players.length < 3) {
@@ -141,7 +160,6 @@ client.on('messageCreate', async message => {
         return message.channel.send("🚨 **تم إلغاء الاجتماع!** عدد الحضور أقل من 3 أشخاص، يبدو أن الجواسيس هربوا مبكراً.");
       }
 
-      // تجهيز اللعبة واختيار الأدوار
       gameState.secretLocation = LOCATIONS[Math.floor(Math.random() * LOCATIONS.length)];
       gameState.detectiveId = gameState.players[Math.floor(Math.random() * gameState.players.length)];
 
@@ -157,13 +175,13 @@ client.on('messageCreate', async message => {
       );
 
       const gameplayMsg = await message.channel.send({
-        content: `🔒 **أُغلقت أبواب القاعة!**\nتم توزيع الأدوار سراً لجميع الحاضرين بالداخل.\n\nاضغط على الزر بالأسفل لتكتشف هويتك وهدفك **بشكل مخفي تماماً**.\n\n⏱️ أمامكم الآن **دقيقتان (2)** للنقاش في الشات كعصابة واحدة لطرح أسئلة غير مباشرة وكشف من هو المحقق الذي لا يعرف المكان!`,
+        content: `🔒 **أُغلقت أبواب القاعة!**\nتم توزيع الأدوار سراً لجميع الحاضرين بالداخل.\n\nاضغط على الزر بالأسفل لتكتشف هويتك وهدفك **بشكل مخفي تماماً (Ephemeral)**.\n\n⏱️ أمامكم الآن **دقيقتان (2)** للنقاش في الشات كعصابة واحدة لطرح أسئلة غير مباشرة وكشف من هو المحقق الذي لا يعرف المكان!`,
         components: [roleRow]
       });
 
       const roleCollector = gameplayMsg.createMessageComponentCollector({
         componentType: ComponentType.Button,
-        time: 120000 // دقيقتان نقاش
+        time: 120000 
       });
 
       roleCollector.on('collect', async btnInteraction => {
@@ -190,10 +208,9 @@ client.on('messageCreate', async message => {
       roleCollector.on('end', async () => {
         await gameplayMsg.edit({ components: [] });
         
-        // بناء أزرار التصويت بأسماء اللاعبين الفعليين
         const voteRow = new ActionRowBuilder();
         gameState.players.forEach((pId, idx) => {
-          if (idx < 5) { // ديسكورد يسمح بـ 5 أزرار في السطر الواحد
+          if (idx < 5) { 
             const member = message.guild.members.cache.get(pId);
             const name = member ? member.user.username : `لاعب ${idx+1}`;
             voteRow.addComponents(
@@ -206,7 +223,7 @@ client.on('messageCreate', async message => {
         });
 
         const voteMsg = await message.channel.send({
-          content: `⏱️ **انتهى وقت النقاش!**\nحان وقت الحسم كاتوومان تنتظر قراركم.. اضغط على زر الشخص الذي تشك أنه **المحقق المتخفي**! (أمامكم 30 ثانية لتجميع الأصوات)`,
+          content: `⏱️ **انتهى وقت النقاش!**\nحان وقت الحسم كاتوومان تنتظر قراركم.. اضغط على زر الشخص الذي تشك أنه **المحقق المتخفي**! (أمامكم 30 ثانية للتصويت)`,
           components: [voteRow]
         });
 
@@ -238,17 +255,13 @@ client.on('messageCreate', async message => {
         voteCollector.on('end', async () => {
           await voteMsg.edit({ components: [] });
 
-          // تحديد من حصل على أعلى أصوات
           let highestVotedId = gameState.players[0];
           gameState.players.forEach(id => {
             if (voteCounts[id] > voteCounts[highestVotedId]) highestVotedId = id;
           });
 
-          // النتيجة: هل كشفوا المحقق الحقيقي؟
           if (highestVotedId === gameState.detectiveId) {
-            // المحقق كُشف! نعطيه الفرصة الأخيرة لتخمين المكان
             const locationRow = new ActionRowBuilder();
-            // نأخذ 3 أماكن عشوائية مع المكان الصحيح لخلط الأوراق
             const options = [gameState.secretLocation, ...LOCATIONS.filter(l => l !== gameState.secretLocation).slice(0, 2)].sort();
             
             options.forEach((loc, index) => {
@@ -261,7 +274,7 @@ client.on('messageCreate', async message => {
             });
 
             const guessMsg = await message.channel.send({
-              content: `🚨 **العصابة كانت حادة الذكاء!** لقد تم كشف <@${gameState.detectiveId}> بأغلبية الأصوات كونه المحقق!\n\n🔍 **الفرصة الأخيرة للمحقق المتخفي:**\nأمامك 20 ثانية فقط للتخمين.. إذا عرفت اسم المكان الصحيح من الأزرار بالأسفل، ستقلب الطاولة وتفوز بالمباراة وتصادر كل الغنائم لباتمان!`,
+              content: `🚨 **العصابة كانت حادة الذكاء!** لقد تم كشف <@${gameState.detectiveId}> بأغلبية الأصوات كونه المحقق!\n\n🔍 **الفرصة الأخيرة للمحقق المتخفي:**\nأمامك 20 ثانية فقط للتخمين.. إذا عرفت اسم المكان الصحيح من الأزرار بالأسفل، ستقلب الطاولة وتفوز!`,
               components: [locationRow]
             });
 
@@ -276,7 +289,6 @@ client.on('messageCreate', async message => {
               if (guessInteraction.user.id !== gameState.detectiveId) {
                 return guessInteraction.reply({ content: '❌ هذه الفرصة تخص المحقق المتخفي فقط لتخمين مكانه!', ephemeral: true });
               }
-
               const isCorrect = guessInteraction.customId.endsWith('true');
               guessedCorrectly = isCorrect;
               guessCollector.stop();
@@ -298,47 +310,70 @@ client.on('messageCreate', async message => {
                 });
                 await message.channel.send(`🎉 **انتصار ساحق للعصابة!**\nفشل المحقق في تخمين الهدف الصحيح، المكان الحقيقي كان **「 ${gameState.secretLocation} 」**.\n\n🏆 تم تأمين السرقات بنجاح وهروب الجميع وحصل كل فرد مخلص من العصابة على **+10 جواهر** 💎 بمخزنه!`);
               }
-              
-              // تصفير اللعبة بالكامل للاستعداد للجولة القادمة
               gameState.isRoundActive = false;
             });
 
           } else {
-            // العصابة أخطأت وصوتت ضد شخص بريء! المحقق يفوز تلقائياً
             catInventory[gameState.detectiveId] = (catInventory[gameState.detectiveId] || 0) + 20;
             await message.channel.send(`🃏 **يا للأسف الشديد!**\nالعصابة أصابها الغباء وصوتت ضد شخص بريء وهو <@${highestVotedId}>!\n\n🏆 **الفائز:** المحقق المتخفي <@${gameState.detectiveId}> استطاع تضليلكم وإرسال الإشارة لباتمان بالوقت المناسب وربح **+20 جوهرة** 💎 لملفه، بينما كان هدف غارتكم هو **「 ${gameState.secretLocation} 」**.`);
-            
             gameState.isRoundActive = false;
           }
         });
       });
     });
-
-    return; // الخروج لمنع تشغيل الذكاء الاصطناعي العادي أثناء أمر اللعبة
+    return; 
   }
 
-  // ===================== نظام الغيرة والتدخل التلقائي بنسبة 20% =====================
-  if (message.author.bot === false && message.mentions.users.some(u => u.username.toLowerCase().includes('alfred'))) {
-    const mentionsBatman = cleanContent.includes('باتمان') || cleanContent.includes('بروس') || cleanContent.includes('واين');
-    if (mentionsBatman && Math.random() < 0.20) {
-      await message.channel.sendTyping();
-      setTimeout(async () => {
-        const intervention = message.author.id === OWNER_ID 
-          ? "أراك تتحدث مع ألفريد وتتجاهلني يا بات.. هل هناك سرّ تخفيه عني؟ 🐾" 
-          : `أرى أنكم تتحدثون عن عزيزي بات هنا.. تذكروا أن غيابي لا يعني أنني لا أراقبكم! ✨`;
-        await message.channel.send(intervention);
-      }, 2500);
-      return;
+  // ===================== 2. نظام القشط والتحليل للإيموجيات والميديا =====================
+  let mediaDescription = "";
+
+  // أ. قراءة روابط الـ GIFs والصور واستخراج الكلمات المفتاحية منها ليفهمها الـ AI
+  if (/https?:\/\/\S+/i.test(cleanContent)) {
+    const urlMatch = cleanContent.match(/(https?:\/\/\S+)/i)[0];
+    const urlWords = urlMatch.split(/[\/\-_.]/).filter(w => w.length > 3 && !['https', 'http', 'www', 'com', 'media', 'tenor', 'giphy'].includes(w.toLowerCase()));
+    if (urlWords.length > 0) {
+      mediaDescription += ` [أرسل رابط ميديا/GIF يتعلق بـ: ${urlWords.slice(0, 2).join(' ')}]`;
+    } else {
+      mediaDescription += ` [أرسل رابط صورة متحركة GIF]`;
     }
   }
 
-  // تحديد الشخصيات للردود المخصصة
-  const isBatman = message.author.id === OWNER_ID;
-  const isJoker = message.author.id === JOKER_ID;
-  const isCop = message.author.id === COP_ID;
-  const isMohammed = message.author.id === MOHAMMED_ID;
-  const persona = isBatman ? 'batman' : isJoker ? 'joker' : isCop ? 'cop' : isMohammed ? 'mohammed' : 'others';
+  // ب. قراءة الصور المرفقة مباشرة بالرسالة
+  if (message.attachments.size > 0) {
+    const attachment = message.attachments.first();
+    if (attachment.contentType && attachment.contentType.startsWith('image/')) {
+      mediaDescription += ` [أرسل صورة مرفقة باسم: ${attachment.name}]`;
+    }
+  }
 
+  // ج. فحص إذا كان العضو يقوم بـ "رد (Reply)" على رسالة ميديا سابقة
+  if (message.reference && message.reference.messageId) {
+    try {
+      const repliedMsg = await message.channel.messages.fetch(message.reference.messageId);
+      if (repliedMsg.attachments.size > 0 || /https?:\/\/\S+/i.test(repliedMsg.content)) {
+        mediaDescription += ` (ملاحظة: هذا رد على ميديا أو GIF أرسلها الطرف الآخر سابقاً)`;
+      }
+    } catch (e) {}
+  }
+
+  // د. تنظيف الأكواد المعقدة للإيموجيات المخصصة وتحويلها لاسم نصي واضح يقرأه الذكاء الاصطناعي
+  // يحول الأكواد الغريبة من <:emoji_name:id> إلى [إيموجي: emoji_name]
+  cleanContent = cleanContent.replace(/<a?:(\w+):(\d+)>/g, '[إيموجي: $1]');
+
+  // دمج الرسالة المنظفة مع الوصف النصي المكتشف للميديا
+  let userMessage = (cleanContent + mediaDescription).trim();
+
+  // هـ. إزالة منشن البوت المعتاد حتى لا يخرب الذاكرة
+  userMessage = userMessage.replace(`<@${client.user.id}>`, '').trim();
+
+  // و. تحويل منشن الأعضاء الآخرين لصيغة نصية مفهومة للـ AI
+  const otherMention = message.mentions.users.find(u => u.id !== client.user.id);
+  if (otherMention) {
+    const mentionRegex = new RegExp(`<@!?${otherMention.id}>`, 'g');
+    userMessage = userMessage.replace(mentionRegex, `[الشخص: ${otherMention.username}]`).trim();
+  }
+
+  // التحقق من شروط الرد (منشن البوت أو الريبلاي عليه)
   const isMentioned = message.mentions.has(client.user);
   let isReplyToCatwoman = false;
   if (message.reference && message.reference.messageId) {
@@ -348,24 +383,37 @@ client.on('messageCreate', async message => {
     } catch (e) {}
   }
 
-  if (!isMentioned && !isReplyToCatwoman) return;
-
-  let userMessage = cleanContent.replace(`<@${client.user.id}>`, '').trim();
-
-  const otherMention = message.mentions.users.find(u => u.id !== client.user.id);
-  if (otherMention) {
-    const mentionRegex = new RegExp(`<@!?${otherMention.id}>`, 'g');
-    userMessage = userMessage.replace(mentionRegex, `[الشخص: ${otherMention.username}]`).trim();
+  // التدخل والغيرة بنسبة 20% في حال منشنوا ألفريد وباتمان معاً
+  if (!isMentioned && !isReplyToCatwoman) {
+    if (message.author.bot === false && message.mentions.users.some(u => u.username.toLowerCase().includes('alfred'))) {
+      const mentionsBatman = cleanContent.includes('باتمان') || cleanContent.includes('بروس') || cleanContent.includes('واين');
+      if (mentionsBatman && Math.random() < 0.20) {
+        await message.channel.sendTyping();
+        setTimeout(async () => {
+          const intervention = message.author.id === OWNER_ID 
+            ? "أراك تتحدث مع ألفريد وتتجاهلني يا بات.. هل هناك سرّ تخفيه عني؟ 🐾" 
+            : `أرى أنكم تتحدثون عن عزيزي بات هنا.. تذكروا أن غيابي لا يعني أنني لا أراقبكم! ✨`;
+          await message.channel.send(intervention);
+        }, 2500);
+        return;
+      }
+    }
+    return; 
   }
 
+  // إذا كانت الرسالة خالية تماماً وأرسل ميديا فقط
   if (!userMessage) {
-    const defaultReply = isBatman ? 'نعم يا بات... أنا هنا' : isJoker ? 'ماذا تريد أيها المهرج؟' : isCop ? 'ماذا تريد أيها الشرطي الفاسد؟' : isMohammed ? 'أهلاً محمد، كيف حالك؟' : `ماذا تريد؟`;
-    return message.reply(defaultReply);
+    return message.reply("🐾 *تنظر إليك بترقب وصمت مريب*");
   }
 
   await message.channel.sendTyping();
 
-  // نظام رياكشنات كاتوومان (25% لباتمان و 5% للبقية)
+  // نظام الرياكشنات التلقائية (25% لباتمان و 5% للبقية)
+  const isBatman = message.author.id === OWNER_ID;
+  const isJoker = message.author.id === JOKER_ID;
+  const isCop = message.author.id === COP_ID;
+  const isMohammed = message.author.id === MOHAMMED_ID;
+  
   try {
     const randomRoll = Math.random();
     if (isBatman) {
@@ -380,10 +428,11 @@ client.on('messageCreate', async message => {
     console.error('Reaction Error:', e);
   }
 
+  // محاكاة تأخير بشري طبيعي بين ثانيتين وثلاث ثوانٍ ونصف
   const randomDelay = Math.floor(Math.random() * (3500 - 2000) + 2000);
 
   setTimeout(async () => {
-    let reply = await getCatwomanReply(message.channel.id, message.author.username, userMessage, persona);
+    let reply = await getCatwomanReply(message.channel.id, message.author.id, message.author.username, userMessage);
     message.reply(reply);
   }, randomDelay);
 });
