@@ -1,11 +1,10 @@
-const {
-  Client,
-  GatewayIntentBits,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  ComponentType,
-  PermissionsBitField
+const { 
+  Client, 
+  GatewayIntentBits, 
+  ActionRowBuilder, 
+  ButtonBuilder, 
+  ButtonStyle, 
+  ComponentType
 } = require('discord.js');
 const Groq = require('groq-sdk');
 
@@ -29,13 +28,6 @@ const COP_ID      = '760628803998318684';
 const MOHAMMED_ID = '839706219870814218';
 
 const JAIL_ROLE_NAME = 'المسجون';
-
-// ===== الإيموجيات المخصصة — عدّل الأرقام حسب سيرفرك =====
-const EMOJI = {
-  smile:   '<:CATWOMAN_smile:112233445566778899>',
-  batman:  '<:batman_laugh:998877665544332211>',
-  joker:   '<:joker:554433221199887766>',
-};
 
 // ===== البيانات =====
 const sharedConversations = {};
@@ -69,7 +61,7 @@ const RANDOM_FUNNY_NAMES = [
   'بطاطس غوثام المقلية 🍟',
 ];
 
-// ===== برومبت كاتوومان =====
+// ===== برومبت كاتوومان السري =====
 const CATWOMAN_SYSTEM_PROMPT = `أنتِ Catwoman (سيلينا كايل) من عالم DC Comics في سيرفر ديسكورد.
 شخصيتكِ: غامضة، ساحرة، ذكية، ساخرة، تتحدثين بلهجة عامية جذابة وانسيابية وبدون تكلف.
 
@@ -80,10 +72,10 @@ const CATWOMAN_SYSTEM_PROMPT = `أنتِ Catwoman (سيلينا كايل) من �
 4. [الشرطي الفاسد]: احتقاره وسخرية لاذعة، ناديه "أيها الشرطي الفاسد".
 5. [عضو عادي]: باردة، متكبرة، ترفضين أي تقرب عاطفي بسخرية قاسية.
 
-قواعد التنسيق:
+قواعد التنسيق الشديدة:
 - ردود قصيرة ومباشرة، جملتان كحد أقصى.
-- استخدمي إيموجي واحداً في نهاية ردك فقط من: CATWOMAN_smile أو batman_laugh أو joker
-- لا تضعي علامات ترقيم بعد الإيموجي أبداً.
+- ممنوع منعاً باتاً كتابة أو وضع أي إيموجيات مخصصة أو رموز نصية مثل :CATWOMAN_smile: أو غيرها في كلامك. اجعلي ردك نصياً خالصاً فقط.
+- لا تضعي علامات ترقيم مشوهة في نهاية السطر أبداً.
 - لا تكتبي منشنات أو رموز @ بنفسكِ.`;
 
 // ===== دالة رد كاتوومان =====
@@ -117,22 +109,15 @@ async function getCatwomanReply(channelId, authorId, authorName, userMessage) {
 
     let reply = completion.choices[0].message.content.trim();
 
-    // استبدال أسماء الإيموجيات بأكوادها الفعلية
-    for (const [name, code] of Object.entries(EMOJI)) {
-      // صيغ متعددة: :اسم: أو [إيموجي: اسم] أو اسم مقطوع
-      reply = reply
-        .replace(new RegExp(`\\[إيموجي:\\s*${name}\\]`, 'gi'), code)
-        .replace(new RegExp(`:${name}:`, 'gi'), code)
-        .replace(new RegExp(`:${name}(?!\\w)`, 'gi'), code);
-    }
-    // استبدال اسم CATWOMAN_smile بالكامل
+    // 🔥 فلترة وحذف برمجية صارمة ومباشرة للكلمات النصية المشوهة لضمان عدم ظهورها نهائياً
     reply = reply
-      .replace(/\[إيموجي:\s*CATWOMAN_smile\]/gi, EMOJI.smile)
-      .replace(/:CATWOMAN_smile:/gi, EMOJI.smile)
-      .replace(/:batman_laugh:/gi, EMOJI.batman)
-      .replace(/:joker:/gi, EMOJI.joker);
+      .replace(/CATWOMAN_smile/gi, '')
+      .replace(/batman_laugh/gi, '')
+      .replace(/joker/gi, '')
+      .replace(/:\w+:/g, '') // مسح أي صيغة إيموجي نصي محاط بنقطتين مثل :smile:
+      .replace(/\[إيموجي:\s*[^\]]*\]/gi, ''); // مسح أي صيغة أقواس إيموجي متروكة
 
-    // تنظيف
+    // تنظيف شامل للنصوص والرموز المتروكة في البداية والنهاية
     reply = reply
       .replace(/\[الشخص:?\s*[^\]]*\]/g, '')
       .replace(/<@!?\d+>/g, '')
@@ -162,7 +147,7 @@ function addWarn(userId, reason, by) {
 
 // ===== جاهز =====
 client.once('ready', () => {
-  console.log(`✅ ${client.user.tag} — Catwoman Online! 🐾`);
+  console.log(`✅ ${client.user.tag} — Catwoman Online & Pure Text Filter Active! 🐾`);
 });
 
 // ===== الأعضاء الجدد =====
@@ -470,7 +455,7 @@ client.on('messageCreate', async message => {
             guessColl.on('end', async () => {
               await guessMsg.edit({ components: [] });
               if (correct) {
-                await message.channel.send(`👑 **انقلب الطاولة!** فاز المحقق <@${gameState.detectiveId}> وعرف المكان **「 ${gameState.secretLocation} 」**!`);
+                await message.channel.send(`👑 **انقلبت الطاولة!** فاز المحقق <@${gameState.detectiveId}> وعرف المكان **「 ${gameState.secretLocation} 」**!`);
               } else {
                 await message.channel.send(`🎉 **فازت العصابة!** فشل المحقق في التخمين والمكان كان **「 ${gameState.secretLocation} 」**.`);
               }
@@ -506,8 +491,8 @@ client.on('messageCreate', async message => {
     if (att.contentType?.startsWith('image/')) mediaDescription += ` [أرسل صورة باسم: ${att.name}]`;
   }
 
-  // تحويل الإيموجيات المخصصة لنص قابل للفهم
-  cleanContent = cleanContent.replace(/<a?:(\w+):(\d+)>/g, '[إيموجي: $1]');
+  // تحويل الإيموجيات المخصصة لنص عادي فقط للفهم دون استبدالها لاحقاً بأكواد مخصصة
+  cleanContent = cleanContent.replace(/<a?:(\w+):(\d+)>/g, '$1');
 
   // إزالة منشن البوت ومعالجة منشنات الأعضاء
   let userMessage = (cleanContent + mediaDescription).trim().replace(`<@${client.user.id}>`, '').trim();
