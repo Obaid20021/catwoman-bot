@@ -32,7 +32,11 @@ const JAIL_ROLE_NAME = 'المسجون';
 // ===== البيانات =====
 const sharedConversations = {};
 const catInventory        = {};
-const warnData            = {}; // { userId: [ { reason, by, date } ] }
+const warnData            = {};
+
+// ===== بيانات الصمت =====
+const silencedUsers    = new Set(); // مجموعة معرفات المكتّمين
+const silencedChannels = new Set(); // مجموعة معرفات القنوات المكتّمة
 
 let gameState = {
   isRoundActive: false,
@@ -109,15 +113,13 @@ async function getCatwomanReply(channelId, authorId, authorName, userMessage) {
 
     let reply = completion.choices[0].message.content.trim();
 
-    // 🔥 فلترة وحذف برمجية صارمة ومباشرة للكلمات النصية المشوهة لضمان عدم ظهورها نهائياً
     reply = reply
       .replace(/CATWOMAN_smile/gi, '')
       .replace(/batman_laugh/gi, '')
       .replace(/joker/gi, '')
-      .replace(/:\w+:/g, '') // مسح أي صيغة إيموجي نصي محاط بنقطتين مثل :smile:
-      .replace(/\[إيموجي:\s*[^\]]*\]/gi, ''); // مسح أي صيغة أقواس إيموجي متروكة
+      .replace(/:\w+:/g, '')
+      .replace(/\[إيموجي:\s*[^\]]*\]/gi, '');
 
-    // تنظيف شامل للنصوص والرموز المتروكة في البداية والنهاية
     reply = reply
       .replace(/\[الشخص:?\s*[^\]]*\]/g, '')
       .replace(/<@!?\d+>/g, '')
@@ -145,6 +147,56 @@ function addWarn(userId, reason, by) {
   return warnData[userId].length;
 }
 
+// ===== رسالة المساعدة =====
+const HELP_MESSAGE = `
+🐾 **دليل أوامر كاتوومان الكامل**
+
+━━━━━━━━━━━━━━━━━━━━━━
+🛡️ **أوامر الإدارة** *(للمدراء فقط)*
+━━━━━━━━━━━━━━━━━━━━━━
+\`كات تأديب\` / \`كات ت\` — تايم أوت دقيقة لعضو
+\`كات سجن\` / \`كات س\` — إضافة رتبة المسجون لعضو
+\`كات تحذير\` / \`كات تح\` — تحذير عضو مع ذكر السبب
+\`كات السجل\` / \`كات سج\` — عرض تحذيرات عضو
+\`كات مسح_تحذيرات\` / \`كات مح\` — مسح تحذيرات عضو
+\`كات الاسم_العشوائي\` / \`كات ع\` — تغيير اسم عضو عشوائياً
+\`كات ترجيع\` / \`كات تر\` — إعادة الاسم الأصلي لعضو
+\`كات إغلاق\` / \`كات اغ\` — إغلاق القناة الحالية
+\`كات فتح\` / \`كات ف\` — فتح القناة الحالية
+\`كات لا_تكلمي @عضو\` / \`كات لتك @عضو\` — تكتيم عضو معين
+\`كات لا_تكلمي\` / \`كات لتك\` — الصمت في القناة كلها
+\`كات كلمي @عضو\` / \`كات كم @عضو\` — رفع الكتم عن عضو
+\`كات كلمي\` / \`كات كم\` — رفع الكتم عن القناة
+
+━━━━━━━━━━━━━━━━━━━━━━
+🎮 **أوامر اللعب** *(للجميع)*
+━━━━━━━━━━━━━━━━━━━━━━
+\`سرقة\` — بدء لعبة السرقة الجماعية
+\`كات مطلوب @عضو\` / \`كات مط @عضو\` — نشر ملصق مطلوب
+\`كات تفتيش @عضو\` / \`كات تف @عضو\` — سرقة جواهر من عضو
+\`كات جواهري\` / \`كات ج\` — عرض رصيد جواهرك
+
+━━━━━━━━━━━━━━━━━━━━━━
+😸 **أوامر التفاعل** *(للجميع)*
+━━━━━━━━━━━━━━━━━━━━━━
+\`كات بخاخ @عضو\` / \`كات بخ @عضو\` — رش الماء
+\`كات مكياج @عضو\` / \`كات مك @عضو\` — رسم مكياج قطة
+\`كات كف @عضو\` / \`كات ك @عضو\` — صفعة درامية
+\`كات تجاهل @عضو\` / \`كات تج @عضو\` — تجاهل تام
+\`كات خرش @عضو\` / \`كات خ @عضو\` — خرش بالمخالب
+\`كات عض @عضو\` / \`كات عض @عضو\` — عضة مفاجئة
+\`كات حضن @عضو\` / \`كات حض @عضو\` — حضن دافئ
+
+━━━━━━━━━━━━━━━━━━━━━━
+💬 **التحدث مع كاتوومان**
+━━━━━━━━━━━━━━━━━━━━━━
+منشن البوت أو رد على رسائله للتحدث معه مباشرة!
+
+\`كات مساعدة\` / \`كات م\` — عرض هذه القائمة
+━━━━━━━━━━━━━━━━━━━━━━
+🐾 *"المعلومات سلاح، والسلاح بيد كاتوومان دائماً."*
+`;
+
 // ===== جاهز =====
 client.once('ready', () => {
   console.log(`✅ ${client.user.tag} — Catwoman Online & Pure Text Filter Active! 🐾`);
@@ -164,14 +216,47 @@ client.on('messageCreate', async message => {
   // =====================================================================
   // قسم 1: أوامر "كات"
   // =====================================================================
-  if (cleanContent.startsWith('كات ')) {
+  if (cleanContent.startsWith('كات ') || cleanContent === 'كات') {
     const args    = cleanContent.slice(4).trim().split(/ +/);
     const command = args[0];
     const targetUser   = message.mentions.users.first();
     const targetMember = message.mentions.members.first();
 
+    // ===== المساعدة =====
+    if (command === 'مساعدة' || command === 'م') {
+      try {
+        await message.author.send(HELP_MESSAGE);
+        return message.reply('🐾 أرسلت لك قائمة الأوامر في رسالة خاصة!');
+      } catch {
+        return message.reply('🚨 لم أتمكن من إرسال رسالة خاصة، تأكد أن رسائلك الخاصة مفتوحة.');
+      }
+    }
+
+    // ===== أوامر الصمت (OWNER فقط) =====
+    if (command === 'لا_تكلمي' || command === 'لتك') {
+      if (message.author.id !== OWNER_ID) return message.reply('🐾 هذا الأمر لسيدي بروس فقط.');
+      if (targetUser) {
+        silencedUsers.add(targetUser.id);
+        return message.channel.send(`🤐 *تدير ظهرها تماماً لـ <@${targetUser.id}> ولن تكلّمه بعد الآن.*`);
+      } else {
+        silencedChannels.add(message.channel.id);
+        return message.channel.send(`🔇 *تصمت كاتوومان في هذه القناة حتى إشعار آخر من سيدها.*`);
+      }
+    }
+
+    if (command === 'كلمي' || command === 'كم') {
+      if (message.author.id !== OWNER_ID) return message.reply('🐾 هذا الأمر لسيدي بروس فقط.');
+      if (targetUser) {
+        silencedUsers.delete(targetUser.id);
+        return message.channel.send(`🐾 *تعود لتراقب <@${targetUser.id}> من بعيد... ربما.*`);
+      } else {
+        silencedChannels.delete(message.channel.id);
+        return message.channel.send(`🔓 *تعود صوت كاتوومان لهذه القناة بإذن من سيدها.*`);
+      }
+    }
+
     // الاسم العشوائي
-    if (command === 'الاسم_العشوائي') {
+    if (command === 'الاسم_العشوائي' || command === 'ع') {
       if (!isPrivileged(message.author.id)) return message.reply('🐾 لست مؤهلاً لهذا الأمر.');
       if (!targetMember) return message.reply('🐾 منشن العضو أولاً.');
       if (targetUser.id === OWNER_ID) return message.reply('🐾 اسم سيدي بروس فوق كل الشبهات.');
@@ -185,7 +270,7 @@ client.on('messageCreate', async message => {
     }
 
     // ترجيع الاسم
-    if (command === 'ترجيع') {
+    if (command === 'ترجيع' || command === 'تر') {
       if (!isPrivileged(message.author.id)) return message.reply('🐾 الصلاحية لأصحاب القصر فقط.');
       if (!targetMember) return message.reply('🐾 منشن الشخص لمسح اسمه المستعار.');
       try {
@@ -196,8 +281,8 @@ client.on('messageCreate', async message => {
       }
     }
 
-    // تأديب (تايم أوت دقيقة)
-    if (command === 'تأديب') {
+    // تأديب
+    if (command === 'تأديب' || command === 'ت') {
       if (!isPrivileged(message.author.id)) return message.reply('🐾 اذهب بعيداً.');
       if (!targetMember) return message.reply('🐾 منشن الضحية.');
       try {
@@ -208,8 +293,8 @@ client.on('messageCreate', async message => {
       }
     }
 
-    // سجن (إضافة رتبة المسجون)
-    if (command === 'سجن') {
+    // سجن
+    if (command === 'سجن' || command === 'س') {
       if (!isPrivileged(message.author.id)) return message.reply('🐾 لا تملك صلاحية.');
       if (!targetMember) return message.reply('🐾 منشن الضحية.');
       const jailRole = message.guild.roles.cache.find(r => r.name === JAIL_ROLE_NAME);
@@ -223,7 +308,7 @@ client.on('messageCreate', async message => {
     }
 
     // إغلاق القناة
-    if (command === 'إغلاق') {
+    if (command === 'إغلاق' || command === 'اغ') {
       if (!isPrivileged(message.author.id)) return message.reply('🐾 للمدراء فقط!');
       try {
         await message.channel.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: false });
@@ -234,7 +319,7 @@ client.on('messageCreate', async message => {
     }
 
     // فتح القناة
-    if (command === 'فتح') {
+    if (command === 'فتح' || command === 'ف') {
       if (!isPrivileged(message.author.id)) return message.reply('🐾 للمدراء فقط!');
       try {
         await message.channel.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: true });
@@ -245,7 +330,7 @@ client.on('messageCreate', async message => {
     }
 
     // تحذير
-    if (command === 'تحذير') {
+    if (command === 'تحذير' || command === 'تح') {
       if (!isPrivileged(message.author.id)) return message.reply('🐾 لا تملك صلاحية التحذير.');
       if (!targetUser) return message.reply('🐾 منشن العضو.');
       const reason = args.slice(2).join(' ') || 'لم يُذكر سبب';
@@ -265,7 +350,7 @@ client.on('messageCreate', async message => {
     }
 
     // سجل التحذيرات
-    if (command === 'السجل') {
+    if (command === 'السجل' || command === 'سج') {
       if (!targetUser) return message.reply('🐾 منشن العضو.');
       const list = warnData[targetUser.id];
       if (!list || list.length === 0) return message.reply(`✅ <@${targetUser.id}> ليس لديه أي تحذيرات.`);
@@ -274,7 +359,7 @@ client.on('messageCreate', async message => {
     }
 
     // مسح التحذيرات
-    if (command === 'مسح_تحذيرات') {
+    if (command === 'مسح_تحذيرات' || command === 'مح') {
       if (!isPrivileged(message.author.id)) return message.reply('🐾 للمدراء فقط.');
       if (!targetUser) return message.reply('🐾 منشن العضو.');
       warnData[targetUser.id] = [];
@@ -282,7 +367,7 @@ client.on('messageCreate', async message => {
     }
 
     // مطلوب
-    if (command === 'مطلوب') {
+    if (command === 'مطلوب' || command === 'مط') {
       if (!targetUser) return message.reply('🐾 منشن الملاحق.');
       const bounty = args.slice(2).join(' ') || '10,000,000 $';
       return message.channel.send(
@@ -290,8 +375,8 @@ client.on('messageCreate', async message => {
       );
     }
 
-    // تفتيش (سرقة جواهر)
-    if (command === 'تفتيش') {
+    // تفتيش
+    if (command === 'تفتيش' || command === 'تف') {
       if (!targetUser) return message.reply('🐾 منشن الضحية.');
       const gems = catInventory[targetUser.id] || 0;
       if (gems <= 0) return message.reply('🐾 هذا المسكين مفلس تماماً!');
@@ -304,20 +389,26 @@ client.on('messageCreate', async message => {
     }
 
     // جواهري
-    if (command === 'جواهري') {
+    if (command === 'جواهري' || command === 'ج') {
       const gems = catInventory[message.author.id] || 0;
       return message.reply(`💎 رصيدك الحالي: **${gems} جوهرة**`);
     }
 
-    // أوامر تفاعلية بسيطة
+    // أوامر تفاعلية
     const funCommands = {
       بخاخ:   (t) => `💦 *ترش وجه <@${t}> بالماء!*\n🐾 "ابتعد من هنا أيها المشاغب!"`,
+      بخ:     (t) => `💦 *ترش وجه <@${t}> بالماء!*\n🐾 "ابتعد من هنا أيها المشاغب!"`,
       مكياج:  (t) => `💄 *ترسم شوارب قطة وردية على وجه <@${t}>!* 😹`,
+      مك:     (t) => `💄 *ترسم شوارب قطة وردية على وجه <@${t}>!* 😹`,
       كف:     (t) => `👋 *تصفع <@${t}> كافاً درامياً بقفازها الجلدي!* 😼`,
+      ك:      (t) => `👋 *تصفع <@${t}> كافاً درامياً بقفازها الجلدي!* 😼`,
       تجاهل:  (t) => `🙄 *تتثاءب بملل وتدير ظهرها لـ <@${t}> متجاهلةً وجوده كلياً.*`,
+      تج:     (t) => `🙄 *تتثاءب بملل وتدير ظهرها لـ <@${t}> متجاهلةً وجوده كلياً.*`,
       خرش:    (t) => `🐈‍⬛ *تخرش وجه <@${t}> بمخالبها الحادة!*`,
+      خ:      (t) => `🐈‍⬛ *تخرش وجه <@${t}> بمخالبها الحادة!*`,
       عض:     (t) => `🐱 *تنقض فجأة وتعض كتف <@${t}> بقوة!*`,
       حضن:    (t) => `🤗 *تحضن <@${t}> بحرارة غير متوقعة منها!* 🐾`,
+      حض:     (t) => `🤗 *تحضن <@${t}> بحرارة غير متوقعة منها!* 🐾`,
     };
 
     if (funCommands[command]) {
@@ -325,7 +416,7 @@ client.on('messageCreate', async message => {
       return message.channel.send(funCommands[command](targetUser.id));
     }
 
-    return; // أمر غير معروف يبدأ بـ "كات"
+    return;
   }
 
   // =====================================================================
@@ -362,7 +453,6 @@ client.on('messageCreate', async message => {
         return message.channel.send('🚨 ألغيت اللعبة لقلة الحضور (يلزم 3 على الأقل).');
       }
 
-      // توزيع الأدوار
       gameState.secretLocation = LOCATIONS[Math.floor(Math.random() * LOCATIONS.length)];
       gameState.detectiveId    = gameState.players[Math.floor(Math.random() * gameState.players.length)];
       gameState.players.forEach(id => {
@@ -394,7 +484,6 @@ client.on('messageCreate', async message => {
       roleCollector.on('end', async () => {
         await gameMsg.edit({ components: [] });
 
-        // بناء أزرار التصويت (حد أقصى 5)
         const voteRow = new ActionRowBuilder();
         gameState.players.slice(0, 5).forEach((pId, idx) => {
           const name = message.guild.members.cache.get(pId)?.user.username || `لاعب ${idx + 1}`;
@@ -422,11 +511,9 @@ client.on('messageCreate', async message => {
         voteCollector.on('end', async () => {
           await voteMsg.edit({ components: [] });
 
-          // أعلى الأصوات
           const highest = gameState.players.reduce((a, b) => voteCounts[b] > voteCounts[a] ? b : a, gameState.players[0]);
 
           if (highest === gameState.detectiveId) {
-            // كُشف المحقق — فرصة أخيرة لتخمين المكان
             const options = [gameState.secretLocation, ...LOCATIONS.filter(l => l !== gameState.secretLocation).slice(0, 2)].sort();
             const guessRow = new ActionRowBuilder();
             options.forEach((loc, idx) => {
@@ -479,7 +566,10 @@ client.on('messageCreate', async message => {
   // قسم 3: محادثة كاتوومان الذكية
   // =====================================================================
 
-  // معالجة الروابط والمرفقات
+  // فحص الصمت
+  if (silencedChannels.has(message.channel.id)) return;
+  if (silencedUsers.has(message.author.id)) return;
+
   let mediaDescription = '';
   const urlMatch = cleanContent.match(/(https?:\/\/\S+)/i);
   if (urlMatch) {
@@ -491,17 +581,14 @@ client.on('messageCreate', async message => {
     if (att.contentType?.startsWith('image/')) mediaDescription += ` [أرسل صورة باسم: ${att.name}]`;
   }
 
-  // تحويل الإيموجيات المخصصة لنص عادي فقط للفهم دون استبدالها لاحقاً بأكواد مخصصة
   cleanContent = cleanContent.replace(/<a?:(\w+):(\d+)>/g, '$1');
 
-  // إزالة منشن البوت ومعالجة منشنات الأعضاء
   let userMessage = (cleanContent + mediaDescription).trim().replace(`<@${client.user.id}>`, '').trim();
   const otherMention = message.mentions.users.find(u => u.id !== client.user.id);
   if (otherMention) {
     userMessage = userMessage.replace(new RegExp(`<@!?${otherMention.id}>`, 'g'), `[الشخص: ${otherMention.username}]`).trim();
   }
 
-  // هل ذُكر البوت أو هل الرسالة رد عليه؟
   const isMentioned = message.mentions.has(client.user);
   let isReplyToCatwoman = false;
   if (message.reference?.messageId) {
@@ -517,7 +604,6 @@ client.on('messageCreate', async message => {
 
   await message.channel.sendTyping();
 
-  // تأخير طبيعي يحاكي الكتابة البشرية
   const delay = Math.floor(Math.random() * 1000) + 1500;
   setTimeout(async () => {
     const reply = await getCatwomanReply(message.channel.id, message.author.id, message.author.username, userMessage);
