@@ -242,7 +242,7 @@ client.once('ready', async () => {
   // إرسال رسالة تلقائية كل 8 ساعات (3 مرات في اليوم)
   setInterval(async () => {
     // ⚠️ ضع هنا آيدي القناة الفعلي التي تريد أن يتحدث البوت فيها تلقائياً بين الأسطر
-    const targetChannelId = 'YOUR_CHANNEL_ID_HERE'; 
+    const targetChannelId = '1500133583732478032'; 
     
     try {
       const channel = await client.channels.fetch(targetChannelId);
