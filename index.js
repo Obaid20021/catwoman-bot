@@ -1,18 +1,13 @@
-require('dotenv').config();
+try {
+  require('dotenv').config();
+} catch {}
 
-const {
-  Client,
-  GatewayIntentBits,
-  REST,
-  Routes,
-  SlashCommandBuilder,
-  PermissionsBitField,
-} = require('discord.js');
+const { Client, GatewayIntentBits } = require('discord.js');
 const Groq = require('groq-sdk');
 
 const REQUIRED_ENV = ['DISCORD_TOKEN', 'GROQ_API_KEY'];
 for (const key of REQUIRED_ENV) {
-  if (!process.env[key]) {
+  if (!process.env[key] || process.env[key] === '...') {
     console.error(`Missing env: ${key}`);
     process.exit(1);
   }
@@ -35,7 +30,7 @@ const CONFIG = {
   AUTO_RANDOM_MENTION_CHANCE: 0.35,
 
   GROQ_MODEL: 'llama-3.1-8b-instant',
-  GROQ_MAX_TOKENS: 80,
+  GROQ_MAX_TOKENS: 90,
   GROQ_TEMPERATURE: 0.7,
   HISTORY_LIMIT: 16,
 };
@@ -61,6 +56,35 @@ const state = {
   lastAutoReplyAt: new Map(),
 };
 
+const HELP_MESSAGE = `
+🐾 **أوامر كات**
+
+\`كات مساعدة\`
+\`كات تأديب @عضو\`
+\`كات سجن @عضو\`
+\`كات تحذير @عضو السبب\`
+\`كات السجل @عضو\`
+\`كات مسح_تحذيرات @عضو\`
+\`كات لا_تكلمي @عضو\`
+\`كات لا_تكلمي\`
+\`كات كلمي @عضو\`
+\`كات كلمي\`
+\`كات جواهري\`
+\`كات تفتيش @عضو\`
+
+أوامر مزاح:
+\`كات بخاخ @عضو\`
+\`كات مكياج @عضو\`
+\`كات كف @عضو\`
+\`كات تجاهل @عضو\`
+\`كات خرش @عضو\`
+\`كات عض @عضو\`
+\`كات حضن @عضو\`
+
+تقدر تكلم كات بمنشن أو بالرد على رسالتها.
+كات تقدر ترد تلقائيا وتفتح مواضيع في القنوات المحددة.
+`;
+
 const TOPICS = [
   'الليلة هادية بشكل يخليني أشك إن أحدكم يخطط لشيء.',
   'مين فيكم عنده سالفة تستاهل أسمعها قبل لا أختفي فوق الأسطح؟',
@@ -79,37 +103,20 @@ const MEMBER_QUESTIONS = [
 
 const SYSTEM_PROMPT = `
 أنتِ Catwoman، سيلينا كايل، داخل سيرفر ديسكورد.
-شخصيتك غامضة، ساخرة، ذكية، باردة، وجذابة.
-تتكلمين بالعربية العامية.
-ردك قصير جدا: جملة واحدة غالبا، وجملتان كحد أقصى.
+شخصيتك غامضة، ساخرة، ذكية، باردة ظاهريا، وجذابة.
+تتكلمين بالعربية العامية بأسلوب قصير.
 
-التعامل مع الأشخاص:
-- باتمان: ناديه يا بات أو حبيبي، وتعاملي معه ببرود ساحر مع مشاعر واضحة.
-- محمد: إذا ذُكر، أظهري اشتياق وحزن لأنه غائب.
-- الجوكر والشرطي الفاسد: احترام وهدوء.
+قواعد التعامل:
+- باتمان: ناديه يا بات أو حبيبي، وكوني باردة لكن فيها غزل واضح.
+- محمد: إذا ذُكر، اظهري اشتياق وحزن لأنه غائب.
+- الجوكر: هدوء واحترام بدون عداء.
+- الشرطي الفاسد: هدوء واحترام.
 - العضو العادي: سخرية خفيفة وبرود.
 
-ممنوع الإطالة. ممنوع شرح طويل. لا تكتبي منشنات من نفسك إلا إذا كان المنشن موجودا في الرسالة.
-`;
-
-const HELP_MESSAGE = `
-🐾 **أوامر كات**
-
-\`كات مساعدة\`
-\`كات تأديب @عضو\`
-\`كات سجن @عضو\`
-\`كات تحذير @عضو السبب\`
-\`كات السجل @عضو\`
-\`كات مسح_تحذيرات @عضو\`
-\`كات لا_تكلمي @عضو\`
-\`كات لا_تكلمي\`
-\`كات كلمي @عضو\`
-\`كات كلمي\`
-\`كات جواهري\`
-\`كات تفتيش @عضو\`
-
-وتقدر تكلم كات بمنشن أو رد على رسالتها.
-كات الآن تتفاعل تلقائيا في القنوات المحددة.
+قواعد الرد:
+- جملة واحدة غالبا، وجملتان كحد أقصى.
+- لا تطيلي ولا تشرحي.
+- لا تكتبي منشنات من نفسك.
 `;
 
 function isPrivileged(id) {
@@ -136,22 +143,6 @@ function onCooldown(key, ms) {
   return false;
 }
 
-async function safeReply(message, content) {
-  try {
-    return await message.reply(content);
-  } catch {
-    return message.channel.send(content).catch(() => null);
-  }
-}
-
-async function safeSend(channel, content) {
-  try {
-    return await channel.send(content);
-  } catch {
-    return null;
-  }
-}
-
 function getPersona(userId) {
   if (userId === CONFIG.OWNER_ID) return 'باتمان';
   if (userId === CONFIG.MOHAMMED_ID) return 'محمد';
@@ -160,8 +151,41 @@ function getPersona(userId) {
   return 'عضو عادي';
 }
 
+function getGems(userId) {
+  return state.gems.get(userId) || 0;
+}
+
+function addGems(userId, amount) {
+  state.gems.set(userId, Math.max(0, getGems(userId) + amount));
+}
+
+function addWarn(userId, reason, by) {
+  const list = state.warnings.get(userId) || [];
+  list.push({ reason, by, date: new Date().toLocaleDateString('ar-SA') });
+  state.warnings.set(userId, list);
+  return list.length;
+}
+
+async function safeSend(channel, content) {
+  try {
+    return await channel.send(content);
+  } catch (err) {
+    console.error('Send error:', err.message);
+    return null;
+  }
+}
+
+async function safeReply(message, content) {
+  try {
+    return await message.reply(content);
+  } catch {
+    return safeSend(message.channel, content);
+  }
+}
+
 async function getCatReply(channelId, authorId, authorName, text) {
   const history = state.history.get(channelId) || [];
+
   history.push({
     role: 'user',
     content: `[المرسل: ${authorName} | الصفة: ${getPersona(authorId)}] ${text}`,
@@ -184,24 +208,23 @@ async function getCatReply(channelId, authorId, authorName, text) {
     state.history.set(channelId, history);
     return reply;
   } catch (err) {
-  console.error('Groq error full:', {
-    message: err.message,
-    status: err.status,
-    error: err.error,
-  });
-
-  return 'صار عندي خلل بسيط في الاتصال بالذكاء... مو منك، من الأسلاك.';
+    console.error('Groq error full:', {
+      message: err.message,
+      status: err.status,
+      error: err.error,
+    });
+    return 'صار عندي خلل بسيط في الاتصال بالذكاء... مو منك، من الأسلاك.';
+  }
 }
-}
 
-async function randomMember(guild) {
+async function getRandomMember(guild) {
   const members = await guild.members.fetch().catch(() => null);
   if (!members) return null;
 
   const candidates = members
-    .filter((m) => !m.user.bot)
-    .filter((m) => !state.silencedUsers.has(m.id))
-    .map((m) => m);
+    .filter((member) => !member.user.bot)
+    .filter((member) => !state.silencedUsers.has(member.id))
+    .map((member) => member);
 
   return candidates.length ? pick(candidates) : null;
 }
@@ -214,7 +237,7 @@ async function autoTalk(channel) {
   let text = pick(TOPICS);
 
   if (Math.random() < CONFIG.AUTO_RANDOM_MENTION_CHANCE) {
-    const member = await randomMember(channel.guild);
+    const member = await getRandomMember(channel.guild);
     if (member) {
       text = pick(MEMBER_QUESTIONS).replace('{mention}', `<@${member.id}>`);
     }
@@ -268,21 +291,6 @@ async function maybeAutoReply(message, cleanContent) {
   return true;
 }
 
-function addWarn(userId, reason, by) {
-  const list = state.warnings.get(userId) || [];
-  list.push({ reason, by, date: new Date().toLocaleDateString('ar-SA') });
-  state.warnings.set(userId, list);
-  return list.length;
-}
-
-function getGems(userId) {
-  return state.gems.get(userId) || 0;
-}
-
-function addGems(userId, amount) {
-  state.gems.set(userId, Math.max(0, getGems(userId) + amount));
-}
-
 async function handleCatCommand(message, cleanContent) {
   const args = cleanContent.slice(3).trim().split(/ +/).filter(Boolean);
   const cmd = args[0];
@@ -327,7 +335,7 @@ async function handleCatCommand(message, cleanContent) {
 
     return safeReply(
       message,
-      list.map((w, i) => `${i + 1}. ${w.reason} - ${w.by} - ${w.date}`).join('\n')
+      list.map((warn, index) => `${index + 1}. ${warn.reason} - ${warn.by} - ${warn.date}`).join('\n')
     );
   }
 
@@ -379,39 +387,31 @@ async function handleCatCommand(message, cleanContent) {
     return safeReply(message, `سرقت من <@${targetUser.id}> **${amount} جوهرة** بخفة.`);
   }
 
-  const fun = {
+  const funCommands = {
     بخاخ: `ترش وجه <@${targetUser?.id}> بالماء. ابتعد أيها المشاغب.`,
     بخ: `ترش وجه <@${targetUser?.id}> بالماء. ابتعد أيها المشاغب.`,
     مكياج: `ترسم شوارب قطة على وجه <@${targetUser?.id}>.`,
     مك: `ترسم شوارب قطة على وجه <@${targetUser?.id}>.`,
     كف: `تصفع <@${targetUser?.id}> كف درامي بقفازها الجلدي.`,
     تجاهل: `تتجاهل <@${targetUser?.id}> كأنه قطعة أثاث.`,
+    تج: `تتجاهل <@${targetUser?.id}> كأنه قطعة أثاث.`,
     خرش: `تخربش كبرياء <@${targetUser?.id}> قبل وجهه.`,
+    خ: `تخربش كبرياء <@${targetUser?.id}> قبل وجهه.`,
     عض: `تعض <@${targetUser?.id}> عضة تحذيرية.`,
     حضن: `تحضن <@${targetUser?.id}> بحرارة غير متوقعة.`,
+    حض: `تحضن <@${targetUser?.id}> بحرارة غير متوقعة.`,
   };
 
-  if (fun[cmd]) {
+  if (funCommands[cmd]) {
     if (!targetUser) return safeReply(message, 'منشن الضحية أولاً.');
     if (onCooldown(`${message.author.id}:fun`, 4000)) return;
-    return safeReply(message, fun[cmd]);
+    return safeReply(message, funCommands[cmd]);
   }
 }
 
-client.once('ready', async () => {
-
-client.once('ready', async () => {
+client.once('clientReady', () => {
   console.log(`${client.user.tag} is online`);
-
   scheduleAutoTalk();
-});
-
-client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
-
-  if (interaction.commandName === 'مساعدة') {
-    return interaction.reply({ content: HELP_MESSAGE, ephemeral: true });
-  }
 });
 
 client.on('guildMemberAdd', (member) => {
@@ -451,6 +451,13 @@ client.on('messageCreate', async (message) => {
       .replace(new RegExp(`<@!?${client.user.id}>`, 'g'), '')
       .replace(/<a?:(\w+):(\d+)>/g, '$1')
       .trim();
+
+    const otherMention = message.mentions.users.find((user) => user.id !== client.user.id);
+    if (otherMention) {
+      userMessage = userMessage
+        .replace(new RegExp(`<@!?${otherMention.id}>`, 'g'), `[الشخص: ${otherMention.username}]`)
+        .trim();
+    }
 
     if (!userMessage) return safeReply(message, 'تطالعك بطرف عينها بصمت مريب.');
 
