@@ -34,7 +34,7 @@ const CONFIG = {
   AUTO_REPLY_COOLDOWN_MS: 7 * 60 * 1000,
   AUTO_RANDOM_MENTION_CHANCE: 0.35,
 
-  GROQ_MODEL: 'llama-3.3-70b-versatile',
+  GROQ_MODEL: 'llama-3.1-8b-instant',
   GROQ_MAX_TOKENS: 80,
   GROQ_TEMPERATURE: 0.7,
   HISTORY_LIMIT: 16,
@@ -184,9 +184,14 @@ async function getCatReply(channelId, authorId, authorName, text) {
     state.history.set(channelId, history);
     return reply;
   } catch (err) {
-    console.error('Groq error:', err.message);
-    return 'مزاجي لا يسمح بالرد الآن.';
-  }
+  console.error('Groq error full:', {
+    message: err.message,
+    status: err.status,
+    error: err.error,
+  });
+
+  return 'صار عندي خلل بسيط في الاتصال بالذكاء... مو منك، من الأسلاك.';
+}
 }
 
 async function randomMember(guild) {
