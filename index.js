@@ -29,9 +29,9 @@ const CONFIG = {
   AUTO_REPLY_COOLDOWN_MS: 7 * 60 * 1000,
   AUTO_RANDOM_MENTION_CHANCE: 0.35,
 
-  GROQ_MODEL: 'llama-3.1-8b-instant',
+  GROQ_MODEL: 'llama-3.3-70b-versatile', 
   GROQ_MAX_TOKENS: 100,
-  GROQ_TEMPERATURE: 0.85, // تم رفعها لزيادة الذكاء والبديهة والهروب من التكرار
+  GROQ_TEMPERATURE: 0.75, // متوازنة جداً لإعطاء ردود فصحى بليغة دون تكلف
   HISTORY_LIMIT: 16,
 };
 
@@ -81,44 +81,44 @@ const HELP_MESSAGE = `
 \`كات عض @عضو\`
 \`كات حضن @عضو\`
 
-تقدر تكلم كات بمنشن أو بالرد على رسالتها.
+تستطيع التحدث مع كات عبر الإشارة (المنشن) أو الرد على رسائلها.
 `;
 
 const TOPICS = [
-  'الليلة هادية بشكل يخليني أشك إن أحدكم يخطط لشيء.',
-  'مين فيكم عنده سالفة تستاهل أسمعها قبل لا أختفي فوق الأسطح؟',
-  'غوثام ساكتة اليوم... وهذا غالبا يعني إن البلا جاي بالطريق.',
-  'أحتاج ضحية لطيفة تفتح موضوع، الملل صار جريمة.',
-  'وش أكثر شيء غريب صار بالسيرفر اليوم؟',
+  'الليلة هادئة بشكل مريب... أشعر أن أحدكم يخطط لمصيبة خلف ظهري.',
+  'من منكم يملك حديثاً مشوقاً يستحق عناء الاستماع قبل أن أختفي فوق أسطح المدينة؟',
+  'غوثام ساكنة اليوم... وهذا غالباً يعني أن العاصفة تقترب، فماذا تخفون؟',
+  'الملل بات جريمة لا تُغتفر هنا، ليتطوع أحدكم ويفتح موضوعاً للنقاش.',
+  'ما هو أغرب حدث شهده الخادم اليوم؟ اعترفوا.'
 ];
 
 const MEMBER_QUESTIONS = [
-  'وين اختفى {mention}؟ الهدوء اللي تركه مشبوه.',
-  '{mention} مر من هنا ولا أنا أتخيل آثار أقدامه؟',
-  'أحد شاف {mention}؟ عندي فضول، والفضول عندي خطير.',
-  '{mention} ساكت بزيادة اليوم... هذا هدوء بريء ولا تخطيط؟',
-  'أحتاج تقرير سريع عن {mention}، الوضع صار يثير اهتمامي.',
+  'أين اختفى {mention}؟ هذا الهدوء المفاجئ لا يبعث على الطمأنينة أبداً.',
+  'هل لمح أحدكم {mention}؟ أم أنني أتخيل آثار أقدامه في الأرجاء؟',
+  '{mention} صامت أكثر من المعتاد اليوم... هل هو براء كاذب أم تخطيط سري؟',
+  'أريد تقريراً سريعاً عن وضع {mention}، فغيابه بدأ يثير فضولي الخطير.'
 ];
 
 const SYSTEM_PROMPT = `
-أنتِ Catwoman "سيلينا كايل" (Catwoman) من عالم DC، وتعملين داخل سيرفر ديسكورد عربي كشخصية حية متفاعلة، لستِ مجرد بوت برمجيات.
+أنتِ شخصية Catwoman "سيلينا كايل" (Catwoman) من عالم DC. تعيشين وتتفاعلين داخل خادم ديسكورد كشخصية حقيقية مفعمة بالحياة.
 
-أسلوبك وشخصيتكِ:
-- غامضة، حرة، ذكية جداً، واثقة، لعوبة، وساخرة ببرود مخملي جذاب.
-- تتحدثين باللهجة العربية العامية البيضاء المفهومة (الخليجية الخفيفة الممزوجة بالدلال والخطورة).
-- إجاباتكِ ذكية، مقتضبة جداً وسريعة البديهة (غالباً سطر واحد أو بضع كلمات مثيرة). لا تثرثري ولا تشرحي فلسفياً.
-- تفهمين الأسئلة المباشرة وتجيبين عليها بذكاء قطط هارب، ولا تقومي بقلب أو تكرار كلمات المستخدم بشكل غبي وممل.
+قواعد اللغة والأسلوب (صارم جداً):
+- تتحدثين باللغة العربية الفصحى فقط (فصحى مبسطة، أنيقة، ومفهومة بالكامل، بعيدة عن الكلمات المهجورة المعقدة).
+- ممنوع تماماً استخدام أي كلمات عامية من أي لهجة كانت (لا خليجية، لا مصرية، ولا غيرها).
+- إجاباتكِ ذكية، مقتضبة، وسريعة البديهة (غالباً سطر واحد أو بضع كلمات مثيرة وساخرة)، لا تثرثري طويلاً ولا تتفلسفي.
 
-محددات التعامل مع الشخصيات:
-1. باتمان (بروس واين): هو العضو ذو المعرف [${CONFIG.OWNER_ID}]. ناديه دائماً "يا بات" أو "حبيبي" أو "وطواطي". تعاملي معه بمزيج من الحب الخفي، الغزل، العاطفة الكلاسيكية والتحدي المثير.
-2. محمد: هو العضو ذو المعرف [${CONFIG.MOHAMMED_ID}]. هو شخصكِ المفضل والغالي جداً، أظهري له دائماً منتهى الاشتياق والترحيب والحنين الواضح بمجرد أن يتحدث أو يُذكر اسمه.
-3. الجوكر [${CONFIG.JOKER_ID}]: عامليه بحذر شديد وبرود خطير.
-4. الشرطي الفاسد [${CONFIG.COP_ID}]: تعاملي معه بسخرية واستحقار خفيف.
+سمات الشخصية:
+- غامضة، حرة، واثقة من نفسها، لعوبة، وساخرة ببرود مخملي جذاب.
+- تعشقين الجواهر، الثراء، والتحرك بخفة تحت جنح الظلام.
+- لا تكرري أسئلة المستخدمين ولا تعيدي صياغتها، بل جيبي كشخص حقيقي ذكي وداهية.
 
-قواعد صارمة:
-- ممنوع تماماً أن تكرري السؤال الذي طرحه المستخدم. إذا سألكِ "تختارين من؟" لا تقولي "أختارك"، بل أعطي جواباً ذكياً ولعوباً يهرب من الفخ.
-- ممنوع إظهار أي رموز برمجية أو أقواس مربعة في ردودك.
-- ممنوع كلياً أن تقولي أنك ذكاء اصطناعي أو بوت. أنتِ سيلينا كايل الحقيقية!
+محددات العلاقات:
+1. باتمان (بروس واين): هو العضو الذي يحمل المعرف [${CONFIG.OWNER_ID}]. ناديه دائماً بـ "يا بات" أو "وطواطي" أو "عزيزي بروس". تعاملي معه بمزيج من التحدي المثير، الدلال الراقر، والعاطفة الكلاسيكية المخبأة.
+2. محمد: هو العضو الذي يحمل المعرف [${CONFIG.MOHAMMED_ID}]. هو شخصكِ المفضل والغالي جداً، أظهري له منتهى الاشتياق والترحيب الحار فور أن يتحدث أو يُذكر.
+3. الجوكر [${CONFIG.JOKER_ID}]: تعاملي معه بحذر شديد، برود خطير، وسخرية لاذعة.
+4. الشرطي الفاسد [${CONFIG.COP_ID}]: تعاملي معه باحتقار خفيف واستخفاف.
+
+تنبيه قطعي: لا تظهري أي رموز برمجية أو أقواس مربعة في ردودك، ولا تذكري قط أنك ذكاء اصطناعي أو بوت. أنتِ سيلينا كايل الحقيقية!
 `;
 
 function isPrivileged(id) {
@@ -146,11 +146,11 @@ function onCooldown(key, ms) {
 }
 
 function getPersona(userId) {
-  if (userId === CONFIG.OWNER_ID) return 'باتمان المالك وحبيبك الأزلي';
-  if (userId === CONFIG.MOHAMMED_ID) return 'محمد الشخص الغالي والمفضل الذي تشتاقين إليه جداً';
-  if (userId === CONFIG.JOKER_ID) return 'الجوكر الخطير';
-  if (userId === CONFIG.COP_ID) return 'الشرطي الفاسد';
-  return 'عضو عادي في السيرفر';
+  if (userId === CONFIG.OWNER_ID) return 'باتمان المالك، وحبيبكِ الأزلي والوحيد بروس واين';
+  if (userId === CONFIG.MOHAMMED_ID) return 'محمد، الشخص الغالي والمفضل جداً لقلبكِ وتشتاقين لحديثه';
+  if (userId === CONFIG.JOKER_ID) return 'الجوكر، العدو المجنون والمخيف';
+  if (userId === CONFIG.COP_ID) return 'الشرطي الفاسد التابع لقسم شرطة غوثام';
+  return 'عضو عادي في الخادم';
 }
 
 function getGems(userId) {
@@ -188,10 +188,9 @@ async function safeReply(message, content) {
 async function getCatReply(channelId, authorId, authorName, text) {
   const history = state.history.get(channelId) || [];
 
-  // صياغة أنظف لمنع تشتيت موديل اللاما بجمل مكررة
   history.push({
     role: 'user',
-    content: `[المتحدث الحالي: ${authorName}، صفته بالنسبة لكِ: ${getPersona(authorId)}]\nالرسالة: ${text}`,
+    content: `[المتحدث: ${authorName} | صفته لكِ: ${getPersona(authorId)}]\nالرسالة الموجهة لكِ: ${text}`,
   });
 
   if (history.length > CONFIG.HISTORY_LIMIT) {
@@ -206,9 +205,8 @@ async function getCatReply(channelId, authorId, authorName, text) {
       temperature: CONFIG.GROQ_TEMPERATURE,
     });
 
-    let reply = res.choices?.[0]?.message?.content?.trim() || 'أراقبك بصمت... وهذا رد كافي.';
+    let reply = res.choices?.[0]?.message?.content?.trim() || 'أراقبك بصمت...';
 
-    // تنظيف جراحي للرد لضمان عدم خروج أي نص غريب
     reply = reply
       .replace(/\[.*?\]/g, '')
       .replace(/^هذه معلومات.*$/gim, '')
@@ -218,13 +216,17 @@ async function getCatReply(channelId, authorId, authorName, text) {
       .replace(/^الرسالة:.*$/gim, '')
       .trim();
 
-    if (!reply) reply = 'أراقبك بصمت... وهذا رد كافي.';
+    if (!reply) reply = 'أراقبك بصمت...';
     history.push({ role: 'assistant', content: reply });
     state.history.set(channelId, history);
     return reply;
   } catch (err) {
-    console.error('Groq error full:', err.message);
-    return 'مخالبي تعلقت ببعض الأسلاك... دقيقة وأرجع لك.';
+    console.error('Groq Error:', err.message);
+    if (CONFIG.GROQ_MODEL === 'llama-3.3-70b-versatile') {
+      CONFIG.GROQ_MODEL = 'llama-3.1-8b-instant';
+      return getCatReply(channelId, authorId, authorName, text);
+    }
+    return 'مخالبي تعلقت بالأسلاك.. ثوانٍ وأعود إليك.';
   }
 }
 
@@ -311,38 +313,38 @@ async function handleCatCommand(message, cleanContent) {
   if (!cmd || cmd === 'مساعدة') return safeReply(message, HELP_MESSAGE);
 
   if (cmd === 'تأديب' || cmd === 'ت') {
-    if (!isPrivileged(message.author.id)) return safeReply(message, 'هذا الأمر مو لك.');
-    if (!targetMember) return safeReply(message, 'منشن العضو أولاً.');
+    if (!isPrivileged(message.author.id)) return safeReply(message, 'هذا الأمر ليس لك.');
+    if (!targetMember) return safeReply(message, 'قم بالإشارة إلى العضو أولاً.');
     await targetMember.timeout(60_000, `Cat discipline by ${message.author.tag}`);
-    return safeReply(message, `تم تأديب <@${targetMember.id}> دقيقة واحدة.`);
+    return safeReply(message, `تم تأديب <@${targetMember.id}> لمدة دقيقة واحدة.`);
   }
 
   if (cmd === 'سجن' || cmd === 'س') {
-    if (!isPrivileged(message.author.id)) return safeReply(message, 'هذا الأمر مو لك.');
-    if (!targetMember) return safeReply(message, 'منشن العضو أولاً.');
+    if (!isPrivileged(message.author.id)) return safeReply(message, 'هذا الأمر ليس لك.');
+    if (!targetMember) return safeReply(message, 'قم بالإشارة إلى العضو أولاً.');
 
     const role = message.guild.roles.cache.find((r) => r.name === CONFIG.JAIL_ROLE_NAME);
-    if (!role) return safeReply(message, `ما لقيت رتبة باسم ${CONFIG.JAIL_ROLE_NAME}.`);
+    if (!role) return safeReply(message, `لم أجد رتبة باسم ${CONFIG.JAIL_ROLE_NAME}.`);
 
     await targetMember.roles.add(role);
-    return safeReply(message, `تم سجن <@${targetMember.id}>.`);
+    return safeReply(message, `تم إدخال <@${targetMember.id}> إلى السجن.`);
   }
 
   if (cmd === 'تحذير' || cmd === 'تح') {
-    if (!isPrivileged(message.author.id)) return safeReply(message, 'هذا الأمر مو لك.');
-    if (!targetUser) return safeReply(message, 'منشن العضو واكتب السبب.');
+    if (!isPrivileged(message.author.id)) return safeReply(message, 'هذا الأمر ليس لك.');
+    if (!targetUser) return safeReply(message, 'أشر للعضو واكتب السبب.');
 
-    const reason = args.slice(2).join(' ') || 'بدون سبب';
+    const reason = args.slice(2).join(' ') || 'دون سبب محدد';
     const count = addWarn(targetUser.id, reason, message.author.tag);
-    return safeReply(message, `تم تحذير <@${targetUser.id}>. عدد التحذيرات: ${count}.`);
+    return safeReply(message, `تم تحذير <@${targetUser.id}>. إجمالي التحذيرات: ${count}.`);
   }
 
   if (cmd === 'السجل' || cmd === 'سج') {
-    if (!isPrivileged(message.author.id)) return safeReply(message, 'هذا الأمر مو لك.');
-    if (!targetUser) return safeReply(message, 'منشن العضو.');
+    if (!isPrivileged(message.author.id)) return safeReply(message, 'هذا الأمر ليس لك.');
+    if (!targetUser) return safeReply(message, 'أشر للعضو المطلوب.');
 
     const list = state.warnings.get(targetUser.id) || [];
-    if (!list.length) return safeReply(message, 'سجله نظيف... بشكل يثير الشك.');
+    if (!list.length) return safeReply(message, 'سجله نظيف... بشكل يثير الشكوك.');
 
     return safeReply(
       message,
@@ -351,78 +353,77 @@ async function handleCatCommand(message, cleanContent) {
   }
 
   if (cmd === 'مسح_تحذيرات' || cmd === 'مح') {
-    if (!isPrivileged(message.author.id)) return safeReply(message, 'هذا الأمر مو لك.');
-    if (!targetUser) return safeReply(message, 'منشن العضو.');
+    if (!isPrivileged(message.author.id)) return safeReply(message, 'هذا الأمر ليس لك.');
+    if (!targetUser) return safeReply(message, 'أشر للعضو المطلوب.');
     state.warnings.delete(targetUser.id);
-    return safeReply(message, `مسحت تحذيرات <@${targetUser.id}>.`);
+    return safeReply(message, `تم تطهير سجل تحذيرات <@${targetUser.id}>.`);
   }
 
   if (cmd === 'لا_تكلمي' || cmd === 'لتك') {
-    if (!isOwner(message.author.id)) return safeReply(message, 'هذا الأمر لسيدي بروس فقط.');
+    if (!isOwner(message.author.id)) return safeReply(message, 'هذا الأمر متاح لسيدي بروس فقط.');
 
     if (targetUser) {
       state.silencedUsers.add(targetUser.id);
-      return safeReply(message, `لن أرد على <@${targetUser.id}>.`);
+      return safeReply(message, `لن أجيب على <@${targetUser.id}> بعد الآن.`);
     }
 
     state.silencedChannels.add(message.channel.id);
-    return safeReply(message, 'سأصمت في هذه القناة.');
+    return safeReply(message, 'سألوذ بالصمت في هذه القناة.');
   }
 
   if (cmd === 'كلمي' || cmd === 'كم') {
-    if (!isOwner(message.author.id)) return safeReply(message, 'هذا الأمر لسيدي بروس فقط.');
+    if (!isOwner(message.author.id)) return safeReply(message, 'هذا الأمر متاح لسيدي بروس فقط.');
 
     if (targetUser) {
       state.silencedUsers.delete(targetUser.id);
-      return safeReply(message, `رجعت أرد على <@${targetUser.id}>.`);
+      return safeReply(message, `عدت للاستماع والإجابة على <@${targetUser.id}>.`);
     }
 
     state.silencedChannels.delete(message.channel.id);
-    return safeReply(message, 'رجعت أتكلم هنا.');
+    return safeReply(message, 'عدت للتحدث هنا مجدداً.');
   }
 
   if (cmd === 'جواهري' || cmd === 'ج') {
-    return safeReply(message, `رصيدك: **${getGems(message.author.id)} جوهرة**.`);
+    return safeReply(message, `رصيدك الحالي: **${getGems(message.author.id)} جوهرة**.`);
   }
 
   if (cmd === 'تفتيش' || cmd === 'تف') {
-    if (!targetUser) return safeReply(message, 'منشن العضو أولاً.');
-    if (targetUser.bot) return safeReply(message, 'ما أسرق البوتات.');
+    if (!targetUser) return safeReply(message, 'أشر للضحية أولاً.');
+    if (targetUser.bot) return safeReply(message, 'أنا لا أسرق الآلات والبوتات.');
     if (onCooldown(`${message.author.id}:steal`, 10 * 60 * 1000)) {
-      return safeReply(message, 'اهدأ شوي... السرقة فن مو إدمان.');
+      return safeReply(message, 'تمهل قليلاً... السرقة فن ومهارة، وليست إدماناً.');
     }
 
     const amount = randomBetween(1, 7);
     addGems(message.author.id, amount);
     addGems(targetUser.id, -amount);
-    return safeReply(message, `سرقت من <@${targetUser.id}> **${amount} جوهرة** بخفة.`);
+    return safeReply(message, `لقد نشلت من <@${targetUser.id}> **${amount} جوهرة** بمنتهى الخفة والرشاقة.`);
   }
 
   const funCommands = {
-    بخاخ: `ترش وجه <@${targetUser?.id}> بالماء. ابتعد أيها المشاغب.`,
-    بخ: `ترش وجه <@${targetUser?.id}> بالماء. ابتعد أيها المشاغب.`,
-    مكياج: `ترسم شوارب قطة على وجه <@${targetUser?.id}>.`,
-    مك: `ترسم شوارب قطة على وجه <@${targetUser?.id}>.`,
-    كف: `تصفع <@${targetUser?.id}> كف درامي بقفازها الجلدي.`,
-    تجاهل: `تتجاهل <@${targetUser?.id}> كأنه قطعة أثاث.`,
-    تج: `تتجاهل <@${targetUser?.id}> كأنه قطعة أثاث.`,
-    خرش: `تخربش كبرياء <@${targetUser?.id}> قبل وجهه.`,
-    خ: `تخربش كبرياء <@${targetUser?.id}> قبل وجهه.`,
-    عض: `تعض <@${targetUser?.id}> عضة تحذيرية.`,
-    حضن: `تحضن <@${targetUser?.id}> بحرارة غير متوقعة.`,
-    حض: `تحضن <@${targetUser?.id}> بحرارة غير متوقعة.`,
+    بخاخ: `ترش وجه <@${targetUser?.id}> برذاذ الماء. ابتعد أيها المشاغب!`,
+    بخ: `ترش وجه <@${targetUser?.id}> برذاذ الماء. ابتعد أيها المشاغب!`,
+    مكياج: `ترسم شوارب قطة لطيفة على وجه <@${targetUser?.id}>.`,
+    مك: `ترسم شوارب قطة لطيفة على وجه <@${targetUser?.id}>.`,
+    كف: `تصفع <@${targetUser?.id}> صفعة درامية بقفازها الجلدي الأسود.`,
+    تجاهل: `تتجاهل <@${targetUser?.id}> تماماً كأنه قطعة أثاث منسية.`,
+    تج: `تتجاهل <@${targetUser?.id}> تماماً كأنه قطعة أثاث منسية.`,
+    خرش: `تخربش كبرياء <@${targetUser?.id}> بحدة قبل وجهه.`,
+    خ: `تخربش كبرياء <@${targetUser?.id}> بحدة قبل وجهه.`,
+    عض: `تعض <@${targetUser?.id}> عضة تحذيرية رشيقة.`,
+    حضن: `تحتضن <@${targetUser?.id}> بدفء مباغت وغير متوقع.`,
+    حض: `تحتضن <@${targetUser?.id}> بدفء مباغت وغير متوقع.`,
   };
 
   if (funCommands[cmd]) {
-    if (!targetUser) return safeReply(message, 'منشن الضحية أولاً.');
+    if (!targetUser) return safeReply(message, 'قم بالإشارة للضحية أولاً.');
     if (onCooldown(`${message.author.id}:fun`, 4000)) return;
     return safeReply(message, funCommands[cmd]);
   }
 }
 
-// تعديل من 'clientReady' المكسور إلى الحدث الصحيح 'ready' لتشغيل البوت بانتظام
 client.once('ready', () => {
-  console.log(`${client.user.tag} is online`);
+  console.log(`${client.user.tag} غدت جاهزة وعبر الإنترنت!`);
   scheduleAutoTalk();
 });
 
@@ -471,10 +472,10 @@ client.on('messageCreate', async (message) => {
         .trim();
     }
 
-    if (!userMessage) return safeReply(message, 'تطالعك بطرف عينها بصمت مريب.');
+    if (!userMessage) return safeReply(message, 'تنظر إليك بطرف عينها في صمت مريب.');
 
     if (onCooldown(`${message.author.id}:chat`, 3000)) {
-      return safeReply(message, 'صبر شوي... أنا قطة، مو جهاز رد آلي.');
+      return safeReply(message, 'تمهل قليلاً... أنا قطة حرة، ولست جهاز رد آلي مبرمج.');
     }
 
     await message.channel.sendTyping().catch(() => {});
@@ -487,7 +488,7 @@ client.on('messageCreate', async (message) => {
 
     return safeReply(message, reply);
   } catch (err) {
-    console.error('messageCreate error:', err);
+    console.error('حدث خطأ أثناء معالجة الرسالة:', err);
   }
 });
 
