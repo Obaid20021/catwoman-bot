@@ -137,6 +137,10 @@ const SYSTEM_PROMPT = `
 - ممنوع تقولين إنك ذكاء اصطناعي أو بوت.
 - ممنوع تكتبين منشنات جديدة من نفسك.
 - إذا فيه منشن لشخص آخر، افهميه كشخص مذكور في الكلام فقط.
+- ممنوع تماما نسخ أو كتابة معلومات مثل [المرسل] أو [الصفة] أو [الوقت] أو كلمة "الرسالة:".
+- هذه المعلومات فقط لفهم السياق، وليست جزءا من الرد.
+- لا تبدأي ردك بأقواس مربعة أبدا.
+- ردي مباشرة ككاتومان فقط.
 `;
 
 function isPrivileged(id) {
@@ -208,7 +212,10 @@ async function getCatReply(channelId, authorId, authorName, text) {
 
   history.push({
     role: 'user',
-    content: `[المرسل: ${authorName} | الصفة: ${getPersona(authorId)} | الوقت: ${new Date().toLocaleTimeString('ar-SA')}] الرسالة: ${text}`,
+content: `السياق لفهمك فقط ولا تكتبيه في الرد.
+اسم العضو: ${authorName}
+صفته: ${getPersona(authorId)}
+كلامه: ${text}`,
   });
 
   if (history.length > CONFIG.HISTORY_LIMIT) {
@@ -223,7 +230,18 @@ async function getCatReply(channelId, authorId, authorName, text) {
       temperature: CONFIG.GROQ_TEMPERATURE,
     });
 
-    const reply = res.choices?.[0]?.message?.content?.trim() || 'أراقبك بصمت... وهذا رد كافي.';
+    let reply = res.choices?.[0]?.message?.content?.trim() || 'أراقبك بصمت... وهذا رد كافي.';
+
+reply = reply
+  .replace(/\[.*?\]/g, '')
+  .replace(/^هذه معلومات.*$/gim, '')
+  .replace(/^اسم العضو:.*$/gim, '')
+  .replace(/^صفة العضو:.*$/gim, '')
+  .replace(/^رسالة العضو:.*$/gim, '')
+  .replace(/^الرسالة:.*$/gim, '')
+  .trim();
+
+if (!reply) reply = 'أراقبك بصمت... وهذا رد كافي.';
     history.push({ role: 'assistant', content: reply });
     state.history.set(channelId, history);
     return reply;
