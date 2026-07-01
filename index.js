@@ -398,26 +398,10 @@ async function handleCatCommand(message, cleanContent) {
   }
 }
 
-async function registerSlashCommands() {
-  const commands = [
-    new SlashCommandBuilder()
-      .setName('مساعدة')
-      .setDescription('عرض أوامر كات')
-      .toJSON(),
-  ];
-
-  const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
-  await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
-}
+client.once('ready', async () => {
 
 client.once('ready', async () => {
   console.log(`${client.user.tag} is online`);
-
-  try {
-    await registerSlashCommands();
-  } catch (err) {
-    console.error('Slash command error:', err.message);
-  }
 
   scheduleAutoTalk();
 });
