@@ -10,7 +10,7 @@ const {
 } = require('discord.js');
 const Groq = require('groq-sdk');
 
-const REQUIRED_ENV = ['DISCORD_TOKEN', 'GROQ_API_KEY', 'CLIENT_ID'];
+const REQUIRED_ENV = ['DISCORD_TOKEN', 'GROQ_API_KEY'];
 for (const key of REQUIRED_ENV) {
   if (!process.env[key]) {
     console.error(`Missing env: ${key}`);
