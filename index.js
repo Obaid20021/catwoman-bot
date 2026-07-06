@@ -5,13 +5,10 @@ try {
 const { Client, GatewayIntentBits } = require('discord.js');
 const Groq = require('groq-sdk');
 
-const REQUIRED_ENV = ['DISCORD_TOKEN', 'GROQ_API_KEY'];
-for (const key of REQUIRED_ENV) {
-  if (!process.env[key]) {
-    console.error(`Missing env: ${key}`);
-    process.exit(1);
-  }
-}
+// --- إعدادات المفاتيح مباشرة داخل الكود ---
+const DISCORD_TOKEN = 'ضع_توكن_الديسكورد_هنا'; 
+const GROQ_API_KEY = 'ضع_مفتاح_جروق_هنا';
+// ----------------------------------------
 
 const CONFIG = {
   OWNER_ID: '648818494808391696',
@@ -35,7 +32,7 @@ const CONFIG = {
   GROQ_TEMPERATURE: 0.8,
   GROQ_FREQUENCY_PENALTY: 0.5,
   GROQ_PRESENCE_PENALTY: 0.3,
-  HISTORY_LIMIT: 12, // لكل مستخدم الآن، مش لكل قناة
+  HISTORY_LIMIT: 12, 
 };
 
 const client = new Client({
@@ -47,17 +44,17 @@ const client = new Client({
   ],
 });
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const groq = new Groq({ apiKey: GROQ_API_KEY });
 
 const state = {
-  history: new Map(),          // key: `${channelId}:${userId}`
+  history: new Map(),          
   warnings: new Map(),
   gems: new Map(),
   silencedUsers: new Set(),
   silencedChannels: new Set(),
   cooldowns: new Map(),
   lastAutoReplyAt: new Map(),
-  lastTopicIndex: new Map(),   // منع تكرار نفس الموضوع في نفس القناة
+  lastTopicIndex: new Map(),   
 };
 
 const HELP_MESSAGE = `
@@ -91,7 +88,7 @@ const HELP_MESSAGE = `
 const TOPICS = [
   'الليلة هادئة بشكل مريب... أشعر أن أحدكم يخطط لمصيبة خلف ظهري.',
   'من منكم يملك حديثاً مشوقاً يستحق عناء الاستماع قبل أن أختفي فوق أسطح المدينة؟',
-  'غوثام ساكتة اليوم... وهذا غالباً يعني أن العاصفة تقترب، فماذا تخفون؟',
+  'غوثام ساكتة اليوم... وهذا غالباً يعني أن العاصفة تقترب, فماذا تخفون؟',
   'الملل بات جريمة لا تُغتفر هنا، ليتطوع أحدكم ويفتح موضوعاً للنقاش.',
   'ما هو أغرب حدث شهده الخادم اليوم؟ اعترفوا.',
   'أخبروني بآخر شيء سرقتموه... معنوياً كان أم مادياً، أنا لا أحكم.',
@@ -192,7 +189,6 @@ function addWarn(userId, reason, by) {
   return list.length;
 }
 
-// رسائل قصيرة جداً أو مجرد إيموجي/تفاعلات لا تستحق رد AI كامل
 function isTrivialMessage(text) {
   const stripped = text.replace(/<a?:\w+:\d+>/g, '').trim();
   if (stripped.length < 4) return true;
@@ -232,7 +228,6 @@ function cleanReply(raw) {
     .replace(/^ردك:.*?[:：]/gim, '')
     .trim();
 
-  // منع تكرار سطرين متطابقين داخل نفس الرد
   const lines = reply.split('\n').map((l) => l.trim()).filter(Boolean);
   const unique = [...new Set(lines)];
   reply = unique.join('\n').trim();
@@ -546,4 +541,4 @@ client.on('error', console.error);
 process.on('unhandledRejection', console.error);
 process.on('uncaughtException', console.error);
 
-client.login(process.env.DISCORD_TOKEN);
+client.login(DISCORD_TOKEN);
