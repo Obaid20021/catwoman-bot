@@ -6,8 +6,8 @@ const { Client, GatewayIntentBits } = require('discord.js');
 const Groq = require('groq-sdk');
 
 // --- إعدادات المفاتيح مباشرة داخل الكود ---
-const DISCORD_TOKEN = 'MTUwMDE4NzAxODk4MDg4NDUyMA.G3COze.iVX8RK6gwD0WUYRnAUu5ft3QI9uT8cdhAiUWog'; 
-const GROQ_API_KEY = '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';
+const DISCORD_TOKEN = 'ضع_توكن_الديسكورد_هنا'; 
+const GROQ_API_KEY = 'ضع_مفتاح_جروق_هنا';
 // ----------------------------------------
 
 const CONFIG = {
@@ -15,6 +15,7 @@ const CONFIG = {
   MOHAMMED_ID: '839706219870814218',
   JOKER_ID: '1052545362533023754',
   COP_ID: '760628803998318684',
+  DAHOOM_ID: '1384582859058053161', // أيدي دحوم الجديد
 
   JAIL_ROLE_NAME: 'المسجون',
 
@@ -127,6 +128,7 @@ const SYSTEM_PROMPT = `
 2. محمد [${CONFIG.MOHAMMED_ID}]: شخصك المفضل، رحّبي به بحرارة واضحة عند حديثه.
 3. الجوكر [${CONFIG.JOKER_ID}]: حذر شديد وسخرية لاذعة.
 4. الشرطي الفاسد [${CONFIG.COP_ID}]: احتقار واستخفاف خفيف.
+5. دحوم [${CONFIG.DAHOOM_ID}]: صديق في الخادم، عامِليه بذكاء ولباقة قططية رشيقة مشوبة ببعض الغموض والتحدي.
 
 تنبيه قطعي: لا أقواس مربعة في ردك النهائي، ولا تذكري إطلاقاً أنك بوت أو نموذج لغوي.
 `;
@@ -171,6 +173,7 @@ function getPersona(userId) {
   if (userId === CONFIG.MOHAMMED_ID) return 'محمد، الشخص الغالي والمفضل لقلبكِ وتشتاقين له';
   if (userId === CONFIG.JOKER_ID) return 'الجوكر العدو والمجنون';
   if (userId === CONFIG.COP_ID) return 'الشرطي الفاسد';
+  if (userId === CONFIG.DAHOOM_ID) return 'دحوم، صديق في الخادم تتعاملين معه بذكاء ولباقة رشيقة وتحدي';
   return 'عضو عادي في الخادم';
 }
 
