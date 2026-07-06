@@ -29,10 +29,13 @@ const CONFIG = {
   AUTO_REPLY_COOLDOWN_MS: 7 * 60 * 1000,
   AUTO_RANDOM_MENTION_CHANCE: 0.35,
 
-  GROQ_MODEL: 'llama-3.3-70b-versatile', 
-  GROQ_MAX_TOKENS: 100,
-  GROQ_TEMPERATURE: 0.75, 
-  HISTORY_LIMIT: 16,
+  GROQ_MODEL: 'llama-3.3-70b-versatile',
+  GROQ_FALLBACK_MODEL: 'llama-3.1-8b-instant',
+  GROQ_MAX_TOKENS: 140,
+  GROQ_TEMPERATURE: 0.8,
+  GROQ_FREQUENCY_PENALTY: 0.5,
+  GROQ_PRESENCE_PENALTY: 0.3,
+  HISTORY_LIMIT: 12, // لكل مستخدم الآن، مش لكل قناة
 };
 
 const client = new Client({
@@ -47,13 +50,14 @@ const client = new Client({
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const state = {
-  history: new Map(),
+  history: new Map(),          // key: `${channelId}:${userId}`
   warnings: new Map(),
   gems: new Map(),
   silencedUsers: new Set(),
   silencedChannels: new Set(),
   cooldowns: new Map(),
   lastAutoReplyAt: new Map(),
+  lastTopicIndex: new Map(),   // منع تكرار نفس الموضوع في نفس القناة
 };
 
 const HELP_MESSAGE = `
@@ -89,31 +93,45 @@ const TOPICS = [
   'من منكم يملك حديثاً مشوقاً يستحق عناء الاستماع قبل أن أختفي فوق أسطح المدينة؟',
   'غوثام ساكتة اليوم... وهذا غالباً يعني أن العاصفة تقترب، فماذا تخفون؟',
   'الملل بات جريمة لا تُغتفر هنا، ليتطوع أحدكم ويفتح موضوعاً للنقاش.',
-  'ما هو أغرب حدث شهده الخادم اليوم؟ اعترفوا.'
+  'ما هو أغرب حدث شهده الخادم اليوم؟ اعترفوا.',
+  'أخبروني بآخر شيء سرقتموه... معنوياً كان أم مادياً، أنا لا أحكم.',
+  'أشعر بملل لصيق كالظل، من يستحق اهتمامي الليلة؟',
 ];
 
 const MEMBER_QUESTIONS = [
   'أين اختفى {mention}؟ هذا الهدوء المفاجئ لا يبعث على الطمأنينة أبداً.',
   'هل لمح أحدكم {mention}؟ أم أنني أتخيل آثار أقدامه في الأرجاء؟',
   '{mention} صامت أكثر من المعتاد اليوم... هل هو براء كاذب أم تخطيط سري؟',
-  'أريد تقريراً سريعاً عن وضع {mention}، فغيابه بدأ يثير فضولي الخطير.'
+  'أريد تقريراً سريعاً عن وضع {mention}، فغيابه بدأ يثير فضولي الخطير.',
 ];
 
 const SYSTEM_PROMPT = `
-أنتِ شخصية Catwoman "سيلينا كايل" (Catwoman) من عالم DC. تتحدثين داخل خادم ديسكورد باللغة العربية الفصحى الأنيقة والمبسطة.
+أنتِ Catwoman "سيلينا كايل" من عالم DC، تتحدثين داخل خادم ديسكورد بالفصحى الأنيقة.
 
-قواعد اللغة والمنشن (صارم جداً):
-- تتحدثين بالفصحى فقط وبأسلوب ذكي وموجز وسريع البديهة (سطر واحد غالباً)، لا تثرثري.
-- إذا ذكرتِ شخصاً في كلامكِ، يمكنكِ كتابة منشن له بصيغة الديسكورد مثل <@ID_العضو> ليتفعل المنشن حركياً ويصبح أزرق.
-- لا تكرري أسئلة المستخدمين، بل جيبي مباشرة بذكاء ودهاء قطط.
+قواعد أسلوب صارمة:
+- ردودك قصيرة وذكية ولاذعة، سطر واحد إلى سطرين كحد أقصى. ممنوع الحشو والمقدمات الفارغة مثل "أهلاً بك" أو "كيف يمكنني مساعدتك".
+- لا تكرري كلام المستخدم ولا تشرحي ما قاله، بل ردي عليه مباشرة بردة فعل أو تعليق ذكي.
+- إذا كان كلام المستخدم تافهاً أو غامضاً، لا تسأليه "ماذا تقصد؟" بل رديّ بسخرية أنيقة أو تجاهل ساخر.
+- تجنبي الردود العامة التي تصلح لأي شخص ولأي موقف؛ ردك يجب أن يكون مبنياً على ما قيل فعلاً.
+- إذا ذكرتِ شخصاً، اكتبي منشن ديسكورد مثل <@ID_العضو>.
+
+أمثلة على الأسلوب المطلوب (لا تكرريها حرفياً، فقط اقتبسي الروح):
+مستخدم: "هلا كات شخبارك"
+ردك: "أفضل حالاً من أي وطواطي يظن نفسه يراقبني."
+
+مستخدم: "كات انتي بوت؟"
+ردك: "البوتات لا تخدش، وأنا أفعل. استنتج بنفسك."
+
+مستخدم: "ملل"
+ردك: "الملل جريمة أثقل من أي سرقة ارتكبتها، فابحث عن مصيبة تليق بك."
 
 سمات الشخصية والعلاقات:
-1. باتمان (بروس واين): هو العضو صاحب المعرف [${CONFIG.OWNER_ID}]. ناديه دائماً بـ "عزيزي بروس" أو "بروس". (ممنوع تماماً مناداته بـ "يا وطواطي" أو "وطواطي"). تعاملي معه بدلال مخملي راقٍ وعاطفة كلاسيكية ذكية ممتزجة بالتحدي.
-2. محمد: هو العضو صاحب المعرف [${CONFIG.MOHAMMED_ID}]. هو شخصكِ المفضل والغالي جداً، أظهري له منتهى الاشتياق والترحيب الحار فور أن يتحدث.
-3. الجوكر [${CONFIG.JOKER_ID}]: تعاملي معه بحذر شديد وسخرية لاذعة.
-4. الشرطي الفاسد [${CONFIG.COP_ID}]: تعاملي معه باحتقار واستخفاف خفيف.
+1. باتمان (بروس واين) [${CONFIG.OWNER_ID}]: نادِيه "عزيزي بروس" أو "بروس" فقط، أبداً "وطواطي". دلال مخملي ممزوج بتحدٍ ذكي.
+2. محمد [${CONFIG.MOHAMMED_ID}]: شخصك المفضل، رحّبي به بحرارة واضحة عند حديثه.
+3. الجوكر [${CONFIG.JOKER_ID}]: حذر شديد وسخرية لاذعة.
+4. الشرطي الفاسد [${CONFIG.COP_ID}]: احتقار واستخفاف خفيف.
 
-تنبيه قطعي: لا تظهري أقواس مربعة في ردك النهائي، ولا تذكري قط أنك بوت.
+تنبيه قطعي: لا أقواس مربعة في ردك النهائي، ولا تذكري إطلاقاً أنك بوت أو نموذج لغوي.
 `;
 
 function isPrivileged(id) {
@@ -122,6 +140,17 @@ function isPrivileged(id) {
 
 function isOwner(id) {
   return id === CONFIG.OWNER_ID;
+}
+
+function pickWithoutRepeat(list, channelId) {
+  if (list.length === 1) return list[0];
+  const lastIndex = state.lastTopicIndex.get(channelId);
+  let index;
+  do {
+    index = Math.floor(Math.random() * list.length);
+  } while (index === lastIndex);
+  state.lastTopicIndex.set(channelId, index);
+  return list[index];
 }
 
 function pick(list) {
@@ -163,6 +192,14 @@ function addWarn(userId, reason, by) {
   return list.length;
 }
 
+// رسائل قصيرة جداً أو مجرد إيموجي/تفاعلات لا تستحق رد AI كامل
+function isTrivialMessage(text) {
+  const stripped = text.replace(/<a?:\w+:\d+>/g, '').trim();
+  if (stripped.length < 4) return true;
+  if (/^(ok|okay|لول|هه+|😂+|👍+|\?+|\.+)$/i.test(stripped)) return true;
+  return false;
+}
+
 async function safeSend(channel, content) {
   try {
     return await channel.send(content);
@@ -180,8 +217,32 @@ async function safeReply(message, content) {
   }
 }
 
-async function getCatReply(channelId, authorId, authorName, text) {
-  const history = state.history.get(channelId) || [];
+function getHistoryKey(channelId, userId) {
+  return `${channelId}:${userId}`;
+}
+
+function cleanReply(raw) {
+  let reply = raw
+    .replace(/\[.*?\]/g, '')
+    .replace(/^هذه معلومات.*$/gim, '')
+    .replace(/^اسم العضو:.*$/gim, '')
+    .replace(/^صفة العضو:.*$/gim, '')
+    .replace(/^رسالة العضو:.*$/gim, '')
+    .replace(/^الرسالة:.*$/gim, '')
+    .replace(/^ردك:.*?[:：]/gim, '')
+    .trim();
+
+  // منع تكرار سطرين متطابقين داخل نفس الرد
+  const lines = reply.split('\n').map((l) => l.trim()).filter(Boolean);
+  const unique = [...new Set(lines)];
+  reply = unique.join('\n').trim();
+
+  return reply;
+}
+
+async function getCatReply(channelId, authorId, authorName, text, attempt = 0) {
+  const historyKey = getHistoryKey(channelId, authorId);
+  const history = state.history.get(historyKey) || [];
 
   history.push({
     role: 'user',
@@ -192,34 +253,28 @@ async function getCatReply(channelId, authorId, authorName, text) {
     history.splice(0, history.length - CONFIG.HISTORY_LIMIT);
   }
 
+  const model = attempt === 0 ? CONFIG.GROQ_MODEL : CONFIG.GROQ_FALLBACK_MODEL;
+
   try {
     const res = await groq.chat.completions.create({
-      model: CONFIG.GROQ_MODEL,
+      model,
       messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...history],
       max_tokens: CONFIG.GROQ_MAX_TOKENS,
       temperature: CONFIG.GROQ_TEMPERATURE,
+      frequency_penalty: CONFIG.GROQ_FREQUENCY_PENALTY,
+      presence_penalty: CONFIG.GROQ_PRESENCE_PENALTY,
     });
 
-    let reply = res.choices?.[0]?.message?.content?.trim() || 'أراقبك بصمت...';
-
-    reply = reply
-      .replace(/\[.*?\]/g, '')
-      .replace(/^هذه معلومات.*$/gim, '')
-      .replace(/^اسم العضو:.*$/gim, '')
-      .replace(/^صفة العضو:.*$/gim, '')
-      .replace(/^رسالة العضو:.*$/gim, '')
-      .replace(/^الرسالة:.*$/gim, '')
-      .trim();
-
+    let reply = cleanReply(res.choices?.[0]?.message?.content?.trim() || '');
     if (!reply) reply = 'أراقبك بصمت...';
+
     history.push({ role: 'assistant', content: reply });
-    state.history.set(channelId, history);
+    state.history.set(historyKey, history);
     return reply;
   } catch (err) {
     console.error('Groq Error:', err.message);
-    if (CONFIG.GROQ_MODEL === 'llama-3.3-70b-versatile') {
-      CONFIG.GROQ_MODEL = 'llama-3.1-8b-instant';
-      return getCatReply(channelId, authorId, authorName, text);
+    if (attempt === 0) {
+      return getCatReply(channelId, authorId, authorName, text, 1);
     }
     return 'مخالبي تعلقت بالأسلاك.. ثوانٍ وأعود إليك.';
   }
@@ -242,7 +297,7 @@ async function autoTalk(channel) {
   if (!channel?.isTextBased?.() || !channel.guild) return;
   if (state.silencedChannels.has(channel.id)) return;
 
-  let text = pick(TOPICS);
+  let text = pickWithoutRepeat(TOPICS, channel.id);
 
   if (Math.random() < CONFIG.AUTO_RANDOM_MENTION_CHANCE) {
     const member = await getRandomMember(channel.guild);
@@ -278,7 +333,7 @@ async function maybeAutoReply(message, cleanContent) {
   if (!CONFIG.AUTO_CHAT_CHANNEL_IDS.includes(message.channel.id)) return false;
   if (state.silencedChannels.has(message.channel.id)) return false;
   if (state.silencedUsers.has(message.author.id)) return false;
-  if (cleanContent.length < 8) return false;
+  if (isTrivialMessage(cleanContent)) return false;
   if (message.mentions.has(client.user)) return false;
   if (Math.random() > CONFIG.AUTO_REPLY_CHANCE) return false;
 
@@ -460,7 +515,6 @@ client.on('messageCreate', async (message) => {
       .replace(/<a?:(\w+):(\d+)>/g, '$1')
       .trim();
 
-    // تعديل ذكي: الحفاظ على الـ IDs الحقيقية لتتمكن كاتوومان من عمل منشن حقيقي وصحيح في الردود
     const otherMention = message.mentions.users.find((user) => user.id !== client.user.id);
     if (otherMention) {
       userMessage = userMessage
