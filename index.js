@@ -6,8 +6,8 @@ const { Client, GatewayIntentBits } = require('discord.js');
 const Groq = require('groq-sdk');
 
 // --- إعدادات المفاتيح مباشرة داخل الكود ---
-const DISCORD_TOKEN = 'ضع_توكن_الديسكورد_هنا'; 
-const GROQ_API_KEY = 'ضع_مفتاح_جروق_هنا';
+const DISCORD_TOKEN = 'MTUwMDE4NzAxODk4MDg4NDUyMA.G3COze.iVX8RK6gwD0WUYRnAUu5ft3QI9uT8cdhAiUWog'; 
+const GROQ_API_KEY = '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';
 // ----------------------------------------
 
 const CONFIG = {
