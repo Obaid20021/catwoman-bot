@@ -7,7 +7,7 @@ const Groq = require('groq-sdk');
 
 const REQUIRED_ENV = ['DISCORD_TOKEN', 'GROQ_API_KEY'];
 for (const key of REQUIRED_ENV) {
-  if (!process.env[key] || process.env[key] === '...') {
+  if (!process.env[key]) {
     console.error(`Missing env: ${key}`);
     process.exit(1);
   }
