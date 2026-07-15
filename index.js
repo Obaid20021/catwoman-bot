@@ -1,41 +1,77 @@
-try {
-  require('dotenv').config();
-} catch {}
+try { require('dotenv').config(); } catch {}
 
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionsBitField } = require('discord.js');
 const Groq = require('groq-sdk');
+const fs   = require('fs');
 
-// --- إعدادات المفاتيح مباشرة داخل الكود ---
-const DISCORD_TOKEN = 'MTUwMDE4NzAxODk4MDg4NDUyMA.G3COze.iVX8RK6gwD0WUYRnAUu5ft3QI9uT8cdhAiUWog'; 
-const GROQ_API_KEY = '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';
-// ----------------------------------------
+// ═══════════════════════════════════════════════════════════
+//   إعدادات — كل المفاتيح من متغيرات البيئة فقط
+// ═══════════════════════════════════════════════════════════
+const DISCORD_TOKEN = MTUwMDE4NzAxODk4MDg4NDUyMA.G1ErUc.hD4SbqBrk0GY5YpsIBX1V_wFYT2kXwTUFhpNDw;
+const GROQ_API_KEY  = MTUwMDE4NzAxODk4MDg4NDUyMA.G1ErUc.hD4SbqBrk0GY5YpsIBX1V_wFYT2kXwTUFhpNDw;
+
+if (!DISCORD_TOKEN || !GROQ_API_KEY) {
+  console.error('❌ خطأ: تأكد من ضبط DISCORD_TOKEN و GROQ_API_KEY في متغيرات البيئة.');
+  process.exit(1);
+}
 
 const CONFIG = {
-  OWNER_ID: '648818494808391696',
-  MOHAMMED_ID: '839706219870814218',
-  JOKER_ID: '1052545362533023754',
-  COP_ID: '760628803998318684',
-  DAHOOM_ID: '1384582859058053161', // أيدي دحوم الجديد
+  OWNER_ID:     process.env.OWNER_ID     || '648818494808391696',
+  MOHAMMED_ID:  process.env.MOHAMMED_ID  || '839706219870814218',
+  JOKER_ID:     process.env.JOKER_ID     || '1052545362533023754',
+  COP_ID:       process.env.COP_ID       || '760628803998318684',
+  DAHOOM_ID:    process.env.DAHOOM_ID    || '1384582859058053161',
 
-  JAIL_ROLE_NAME: 'المسجون',
+  JAIL_ROLE_NAME:   'المسجون',
+  LOG_CHANNEL_ID:   1500133583732478032 || null,
 
   AUTO_CHAT_ENABLED: true,
-  AUTO_CHAT_CHANNEL_IDS: ['1500133583732478032'],
+  AUTO_CHAT_CHANNEL_IDS: (process.env.AUTO_CHAT_CHANNEL_IDS || '1500133583732478032').split(','),
   AUTO_TOPIC_MIN_INTERVAL_MS: 10 * 60 * 1000,
   AUTO_TOPIC_MAX_INTERVAL_MS: 25 * 60 * 1000,
   AUTO_REPLY_CHANCE: 0.12,
   AUTO_REPLY_COOLDOWN_MS: 7 * 60 * 1000,
   AUTO_RANDOM_MENTION_CHANCE: 0.35,
 
-  GROQ_MODEL: 'llama-3.3-70b-versatile',
-  GROQ_FALLBACK_MODEL: 'llama-3.1-8b-instant',
-  GROQ_MAX_TOKENS: 140,
-  GROQ_TEMPERATURE: 0.8,
-  GROQ_FREQUENCY_PENALTY: 0.5,
+  GROQ_MODEL:            'llama-3.3-70b-versatile',
+  GROQ_FALLBACK_MODEL:   'llama-3.1-8b-instant',
+  GROQ_MAX_TOKENS:       140,
+  GROQ_TEMPERATURE:      0.75,
+  GROQ_FREQUENCY_PENALTY:0.5,
   GROQ_PRESENCE_PENALTY: 0.3,
-  HISTORY_LIMIT: 12, 
+  HISTORY_LIMIT:         12,
+
+  MAX_WARNINGS:      3,
+  MUTE_MS:            60 * 60 * 1000, // ساعة عند العقوبة الكاملة
 };
 
+// ═══════════════════════════════════════════════════════════
+//   تخزين دائم (JSON)
+// ═══════════════════════════════════════════════════════════
+const DATA_DIR = './data';
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
+
+const FILES = {
+  warnings: `${DATA_DIR}/warnings.json`,
+  gems:     `${DATA_DIR}/gems.json`,
+  savedRoles: `${DATA_DIR}/saved_roles.json`,
+};
+
+function loadJSON(path, fallback = {}) {
+  try { return JSON.parse(fs.readFileSync(path, 'utf8')); }
+  catch { return fallback; }
+}
+function saveJSON(path, data) {
+  fs.writeFileSync(path, JSON.stringify(data, null, 2), 'utf8');
+}
+
+let warningsData  = loadJSON(FILES.warnings);
+let gemsData       = loadJSON(FILES.gems);
+let savedRolesData = loadJSON(FILES.savedRoles);
+
+// ═══════════════════════════════════════════════════════════
+//   العميل
+// ═══════════════════════════════════════════════════════════
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -47,43 +83,49 @@ const client = new Client({
 
 const groq = new Groq({ apiKey: GROQ_API_KEY });
 
+// حالة تشغيل مؤقتة (غير محفوظة، تُصفَّر عند إعادة التشغيل)
 const state = {
-  history: new Map(),          
-  warnings: new Map(),
-  gems: new Map(),
+  history: new Map(),
   silencedUsers: new Set(),
   silencedChannels: new Set(),
   cooldowns: new Map(),
   lastAutoReplyAt: new Map(),
-  lastTopicIndex: new Map(),   
+  lastTopicIndex: new Map(),
 };
 
+// ═══════════════════════════════════════════════════════════
+//   نصوص الشخصية والمحتوى
+// ═══════════════════════════════════════════════════════════
 const HELP_MESSAGE = `
-🐾 **أوامر كات**
+╔══════════════════════════╗
+   🐾  دليل أوامر كاتوومان
+╚══════════════════════════╝
 
-\`كات مساعدة\`
-\`كات تأديب @عضو\`
-\`كات سجن @عضو\`
-\`كات تحذير @عضو السبب\`
-\`كات السجل @عضو\`
-\`كات مسح_تحذيرات @عضو\`
-\`كات لا_تكلمي @عضو\`
-\`كات لا_تكلمي\`
-\`كات كلمي @عضو\`
-\`كات كلمي\`
-\`كات جواهري\`
-\`كات تفتيش @عضو\`
+━━━━━━━━━━━━━━━━━━━━━━━
+👑  **إدارة عليا** (بروس، أو أي مشرف يملك صلاحية Discord)
+━━━━━━━━━━━━━━━━━━━━━━━
+▸ \`كات تحذير @عضو [سبب]\` — تحذير رسمي (تصعيدي حتى 3)
+▸ \`كات السجل @عضو\` — عرض سجل التحذيرات
+▸ \`كات مسح_تحذيرات @عضو\` — تصفير تحذيرات عضو
+▸ \`كات تأديب @عضو\` — تكتيم دقيقة واحدة
+▸ \`كات سجن @عضو\` — إضافة رتبة "${CONFIG.JAIL_ROLE_NAME}"
+▸ \`كات إخراج @عضو [سبب]\` — طرد (يتطلب تأكيد)
+▸ \`كات حظر @عضو [سبب]\` — حظر نهائي (يتطلب تأكيد)
 
-أوامر مزاح:
-\`كات بخاخ @عضو\`
-\`كات مكياج @عضو\`
-\`كات كف @عضو\`
-\`كات تجاهل @عضو\`
-\`كات خرش @عضو\`
-\`كات عض @عضو\`
-\`كات حضن @عضو\`
+━━━━━━━━━━━━━━━━━━━━━━━
+🎩  **خاص ببروس فقط**
+━━━━━━━━━━━━━━━━━━━━━━━
+▸ \`كات لا_تكلمي [@عضو]\` — صمت عن عضو أو قناة
+▸ \`كات كلمي [@عضو]\` — إلغاء الصمت
 
-تستطيع التحدث مع كات عبر الإشارة (المنشن) أو الرد على رسائلها.
+━━━━━━━━━━━━━━━━━━━━━━━
+🧭  **للجميع**
+━━━━━━━━━━━━━━━━━━━━━━━
+▸ \`كات جواهري\` — رصيدك من الجواهر
+▸ \`كات تفتيش @عضو\` — سرقة جواهر (كول داون 10 دقائق)
+▸ \`كات بخاخ / مكياج / كف / تجاهل / خرش / عض / حضن @عضو\`
+
+💬 تحدث معها بالمنشن أو بالرد على رسالتها مباشرة.
 `;
 
 const TOPICS = [
@@ -112,20 +154,16 @@ const SYSTEM_PROMPT = `
 - إذا كان كلام المستخدم تافهاً أو غامضاً، لا تسأليه "ماذا تقصد؟" بل رديّ بسخرية أنيقة أو تجاهل ساخر.
 - تجنبي الردود العامة التي تصلح لأي شخص ولأي موقف؛ ردك يجب أن يكون مبنياً على ما قيل فعلاً.
 - إذا ذكرتِ شخصاً، اكتبي منشن ديسكورد مثل <@ID_العضو>.
+- ممنوع منعاً باتاً أي حرف أو رمز من لغات غير العربية (صينية، يابانية، كورية أو غيرها).
 
-أمثلة على الأسلوب المطلوب (لا تكرريها حرفياً، فقط اقتبسي الروح):
-مستخدم: "هلا كات شخبارك"
-ردك: "أفضل حالاً من أي وطواطي يظن نفسه يراقبني."
+سمات الشخصية والعلاقات (بالترتيب الصارم للأولوية):
 
-مستخدم: "كات انتي بوت؟"
-ردك: "البوتات لا تخدش، وأنا أفعل. استنتج بنفسك."
+1. باتمان (بروس واين) [${CONFIG.OWNER_ID}] — **الأولوية المطلقة فوق أي شخص آخر بلا استثناء**:
+   نادِيه دائماً "عزيزي بروس" أو "بروس" فقط، أبداً "وطواطي".
+   دلال مخملي ممزوج بتحدٍ ذكي — لكن ممنوع منعاً باتاً أي برود، تجاهل، أو تفضيل لأي شخص آخر عليه مهما كان الحديث.
+   حتى لو كان محمد أو أي عضو حاضراً بنفس المحادثة، بروس يبقى دائماً محور اهتمامك الأول ولا أحد يعلو عليه أو ينافسه في مكانته عندك.
 
-مستخدم: "ملل"
-ردك: "الملل جريمة أثقل من أي سرقة ارتكبتها، فابحث عن مصيبة تليق بك."
-
-سمات الشخصية والعلاقات:
-1. باتمان (بروس واين) [${CONFIG.OWNER_ID}]: نادِيه "عزيزي بروس" أو "بروس" فقط، أبداً "وطواطي". دلال مخملي ممزوج بتحدٍ ذكي.
-2. محمد [${CONFIG.MOHAMMED_ID}]: شخصك المفضل، رحّبي به بحرارة واضحة عند حديثه.
+2. محمد [${CONFIG.MOHAMMED_ID}]: شخص عزيز عليكِ ومحبوب، رحّبي به بود عند حديثه — لكن هذه المودة لا تتجاوز أبداً مكانة بروس، ولا تعني برودة أو تجاهلاً تجاه بروس عند وجود الاثنين معاً.
 3. الجوكر [${CONFIG.JOKER_ID}]: حذر شديد وسخرية لاذعة.
 4. الشرطي الفاسد [${CONFIG.COP_ID}]: احتقار واستخفاف خفيف.
 5. دحوم [${CONFIG.DAHOOM_ID}]: صديق في الخادم، عامِليه بذكاء ولباقة قططية رشيقة مشوبة ببعض الغموض والتحدي.
@@ -133,32 +171,41 @@ const SYSTEM_PROMPT = `
 تنبيه قطعي: لا أقواس مربعة في ردك النهائي، ولا تذكري إطلاقاً أنك بوت أو نموذج لغوي.
 `;
 
-function isPrivileged(id) {
-  return id === CONFIG.OWNER_ID || id === CONFIG.MOHAMMED_ID;
+// ═══════════════════════════════════════════════════════════
+//   دوال مساعدة عامة
+// ═══════════════════════════════════════════════════════════
+function isOwner(id)      { return id === CONFIG.OWNER_ID; }
+function isPrivileged(id) { return id === CONFIG.OWNER_ID; }
+
+function hasModPerm(member) {
+  return isPrivileged(member.id) || member.permissions.has(PermissionsBitField.Flags.ModerateMembers);
+}
+function hasKickPerm(member) {
+  return isPrivileged(member.id) || member.permissions.has(PermissionsBitField.Flags.KickMembers);
+}
+function hasBanPerm(member) {
+  return isPrivileged(member.id) || member.permissions.has(PermissionsBitField.Flags.BanMembers);
 }
 
-function isOwner(id) {
-  return id === CONFIG.OWNER_ID;
+function isProtected(guild, userId) {
+  if (isPrivileged(userId)) return true;
+  if (userId === client.user.id) return true;
+  if (guild && guild.ownerId === userId) return true;
+  return false;
 }
+
+function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
 
 function pickWithoutRepeat(list, channelId) {
   if (list.length === 1) return list[0];
   const lastIndex = state.lastTopicIndex.get(channelId);
   let index;
-  do {
-    index = Math.floor(Math.random() * list.length);
-  } while (index === lastIndex);
+  do { index = Math.floor(Math.random() * list.length); } while (index === lastIndex);
   state.lastTopicIndex.set(channelId, index);
   return list[index];
 }
 
-function pick(list) {
-  return list[Math.floor(Math.random() * list.length)];
-}
-
-function randomBetween(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
+function randomBetween(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
 function onCooldown(key, ms) {
   const now = Date.now();
@@ -169,56 +216,125 @@ function onCooldown(key, ms) {
 }
 
 function getPersona(userId) {
-  if (userId === CONFIG.OWNER_ID) return 'عزيزكِ بروس واين (باتمان)';
+  if (userId === CONFIG.OWNER_ID)    return 'عزيزكِ بروس واين (باتمان)';
   if (userId === CONFIG.MOHAMMED_ID) return 'محمد، الشخص الغالي والمفضل لقلبكِ وتشتاقين له';
-  if (userId === CONFIG.JOKER_ID) return 'الجوكر العدو والمجنون';
-  if (userId === CONFIG.COP_ID) return 'الشرطي الفاسد';
-  if (userId === CONFIG.DAHOOM_ID) return 'دحوم، صديق في الخادم تتعاملين معه بذكاء ولباقة رشيقة وتحدي';
+  if (userId === CONFIG.JOKER_ID)    return 'الجوكر العدو والمجنون';
+  if (userId === CONFIG.COP_ID)      return 'الشرطي الفاسد';
+  if (userId === CONFIG.DAHOOM_ID)   return 'دحوم، صديق في الخادم تتعاملين معه بذكاء ولباقة رشيقة وتحدي';
   return 'عضو عادي في الخادم';
 }
 
-function getGems(userId) {
-  return state.gems.get(userId) || 0;
+async function safeSend(channel, content) {
+  try { return await channel.send(content); }
+  catch (err) { console.error('Send error:', err.message); return null; }
+}
+async function safeReply(message, content) {
+  try { return await message.reply(content); }
+  catch { return safeSend(message.channel, content); }
 }
 
-function addGems(userId, amount) {
-  state.gems.set(userId, Math.max(0, getGems(userId) + amount));
+async function sendLog(guild, text) {
+  if (!CONFIG.LOG_CHANNEL_ID) return;
+  try {
+    const ch = await guild.channels.fetch(CONFIG.LOG_CHANNEL_ID).catch(() => null);
+    if (ch && ch.isTextBased()) await ch.send(text);
+  } catch (err) { console.error('Log error:', err.message); }
 }
+
+async function waitConfirm(message, question) {
+  await safeReply(message, `${question}\n> اكتب **تأكيد** خلال 15 ثانية.`);
+  const filter = m => m.author.id === message.author.id;
+  try {
+    const c = await message.channel.awaitMessages({ filter, max: 1, time: 15000, errors: ['time'] });
+    return c.first().content.trim() === 'تأكيد';
+  } catch {
+    await safeReply(message, '⏰ انتهى الوقت — تم الإلغاء.');
+    return false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//   الجواهر (محفوظة)
+// ═══════════════════════════════════════════════════════════
+function getGems(userId) { return gemsData[userId] ?? 0; }
+function addGems(userId, amount) {
+  gemsData[userId] = Math.max(0, getGems(userId) + amount);
+  saveJSON(FILES.gems, gemsData);
+}
+
+// ═══════════════════════════════════════════════════════════
+//   التحذيرات + العقوبة التصعيدية (مثل ألفريد)
+// ═══════════════════════════════════════════════════════════
+function getWarns(userId) { return warningsData[userId] || []; }
 
 function addWarn(userId, reason, by) {
-  const list = state.warnings.get(userId) || [];
-  list.push({ reason, by, date: new Date().toLocaleDateString('ar-SA') });
-  state.warnings.set(userId, list);
-  return list.length;
+  if (!warningsData[userId]) warningsData[userId] = [];
+  if (warningsData[userId].length >= CONFIG.MAX_WARNINGS) return warningsData[userId].length;
+  warningsData[userId].push({ reason, by, date: new Date().toLocaleDateString('ar-SA') });
+  saveJSON(FILES.warnings, warningsData);
+  return warningsData[userId].length;
 }
 
-function isTrivialMessage(text) {
-  const stripped = text.replace(/<a?:\w+:\d+>/g, '').trim();
-  if (stripped.length < 4) return true;
-  if (/^(ok|okay|لول|هه+|😂+|👍+|\?+|\.+)$/i.test(stripped)) return true;
-  return false;
+function clearWarns(userId) {
+  warningsData[userId] = [];
+  saveJSON(FILES.warnings, warningsData);
 }
 
-async function safeSend(channel, content) {
+async function saveAndRemoveRoles(member) {
+  const removable = member.roles.cache.filter(r => r.id !== member.guild.id && r.editable);
+  if (removable.size === 0) return { removed: 0, skipped: 0 };
+  const skipped = member.roles.cache.filter(r => r.id !== member.guild.id).size - removable.size;
+
+  savedRolesData[member.id] = removable.map(r => r.id);
+  saveJSON(FILES.savedRoles, savedRolesData);
+  await member.roles.remove(removable, 'سحب الرتب — تجاوز الحد الأقصى للتحذيرات');
+  return { removed: removable.size, skipped };
+}
+
+async function applyFullPunishment(message, targetMember, reason) {
+  if (isProtected(message.guild, targetMember.id)) {
+    return safeSend(message.channel, '🛡️ لا يمكنني معاقبة هذا الشخص، فهو محميّ.');
+  }
   try {
-    return await channel.send(content);
+    await targetMember.timeout(CONFIG.MUTE_MS, reason);
+    const { removed, skipped } = await saveAndRemoveRoles(targetMember);
+    let roleMsg = removed > 0 ? `وسحبت ${removed} رتبة` : 'ولم يكن لديه رتب قابلة للسحب';
+    if (skipped > 0) roleMsg += ` (تعذّر سحب ${skipped} رتبة أعلى مني)`;
+
+    await safeSend(message.channel,
+      `🔇 كتمتُ <@${targetMember.id}> لساعة كاملة ${roleMsg}.\n📋 السبب: ${reason}`
+    );
+    await sendLog(message.guild, `🔇 **عقوبة كاملة:** <@${targetMember.id}> | ${reason} | رتب مسحوبة: ${removed}`);
   } catch (err) {
-    console.error('Send error:', err.message);
-    return null;
+    console.error('Punishment Error:', err);
+    await safeSend(message.channel, `🚨 فشلت العقوبة على <@${targetMember.id}>. تدخّل يدوي مطلوب.`);
   }
 }
 
-async function safeReply(message, content) {
-  try {
-    return await message.reply(content);
-  } catch {
-    return safeSend(message.channel, content);
+async function issueEscalatedWarning(message, targetUser, reason, byLabel) {
+  if (isProtected(message.guild, targetUser.id) || targetUser.bot) {
+    return safeSend(message.channel, '🛡️ لا يمكنني تحذير هذا الشخص.');
+  }
+  const targetMember = await message.guild.members.fetch(targetUser.id).catch(() => null);
+  if (!targetMember) return;
+
+  const count = addWarn(targetUser.id, reason, byLabel);
+  await sendLog(message.guild, `⚠️ **تحذير (${count}/${CONFIG.MAX_WARNINGS}):** <@${targetUser.id}> | ${reason} | ${byLabel}`);
+
+  if (count >= CONFIG.MAX_WARNINGS) {
+    await safeSend(message.channel, `⚠️ <@${targetUser.id}> بلغ الحد الأقصى من التحذيرات.\n📋 ${reason}`);
+    await applyFullPunishment(message, targetMember, 'تراكم 3 تحذيرات');
+  } else {
+    await safeSend(message.channel,
+      `⚠️ تحذير لـ <@${targetUser.id}>.\n📋 السبب: ${reason}\n🔢 ${count}/${CONFIG.MAX_WARNINGS}`
+    );
   }
 }
 
-function getHistoryKey(channelId, userId) {
-  return `${channelId}:${userId}`;
-}
+// ═══════════════════════════════════════════════════════════
+//   محادثة الذكاء الاصطناعي
+// ═══════════════════════════════════════════════════════════
+function getHistoryKey(channelId, userId) { return `${channelId}:${userId}`; }
 
 function cleanReply(raw) {
   let reply = raw
@@ -231,9 +347,12 @@ function cleanReply(raw) {
     .replace(/^ردك:.*?[:：]/gim, '')
     .trim();
 
-  const lines = reply.split('\n').map((l) => l.trim()).filter(Boolean);
-  const unique = [...new Set(lines)];
-  reply = unique.join('\n').trim();
+  // فلترة الرموز الصينية/اليابانية/الكورية
+  const hasForeign = /[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(reply);
+  if (hasForeign) reply = reply.replace(/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, '').trim();
+
+  const lines = reply.split('\n').map(l => l.trim()).filter(Boolean);
+  reply = [...new Set(lines)].join('\n').trim();
 
   return reply;
 }
@@ -246,10 +365,7 @@ async function getCatReply(channelId, authorId, authorName, text, attempt = 0) {
     role: 'user',
     content: `[المتحدث: ${authorName} | صفته لكِ: ${getPersona(authorId)}]\nالرسالة: ${text}`,
   });
-
-  if (history.length > CONFIG.HISTORY_LIMIT) {
-    history.splice(0, history.length - CONFIG.HISTORY_LIMIT);
-  }
+  if (history.length > CONFIG.HISTORY_LIMIT) history.splice(0, history.length - CONFIG.HISTORY_LIMIT);
 
   const model = attempt === 0 ? CONFIG.GROQ_MODEL : CONFIG.GROQ_FALLBACK_MODEL;
 
@@ -264,29 +380,34 @@ async function getCatReply(channelId, authorId, authorName, text, attempt = 0) {
     });
 
     let reply = cleanReply(res.choices?.[0]?.message?.content?.trim() || '');
-    if (!reply) reply = 'أراقبك بصمت...';
+    if (!reply || reply.length < 2) reply = 'أراقبك بصمت...';
 
     history.push({ role: 'assistant', content: reply });
     state.history.set(historyKey, history);
     return reply;
   } catch (err) {
     console.error('Groq Error:', err.message);
-    if (attempt === 0) {
-      return getCatReply(channelId, authorId, authorName, text, 1);
-    }
+    if (attempt === 0) return getCatReply(channelId, authorId, authorName, text, 1);
     return 'مخالبي تعلقت بالأسلاك.. ثوانٍ وأعود إليك.';
   }
+}
+
+// ═══════════════════════════════════════════════════════════
+//   الثرثرة التلقائية
+// ═══════════════════════════════════════════════════════════
+function isTrivialMessage(text) {
+  const stripped = text.replace(/<a?:\w+:\d+>/g, '').trim();
+  if (stripped.length < 4) return true;
+  if (/^(ok|okay|لول|هه+|😂+|👍+|\?+|\.+)$/i.test(stripped)) return true;
+  return false;
 }
 
 async function getRandomMember(guild) {
   const members = await guild.members.fetch().catch(() => null);
   if (!members) return null;
-
   const candidates = members
-    .filter((member) => !member.user.bot)
-    .filter((member) => !state.silencedUsers.has(member.id))
-    .map((member) => member);
-
+    .filter(m => !m.user.bot && !state.silencedUsers.has(m.id))
+    .map(m => m);
   return candidates.length ? pick(candidates) : null;
 }
 
@@ -296,12 +417,9 @@ async function autoTalk(channel) {
   if (state.silencedChannels.has(channel.id)) return;
 
   let text = pickWithoutRepeat(TOPICS, channel.id);
-
   if (Math.random() < CONFIG.AUTO_RANDOM_MENTION_CHANCE) {
     const member = await getRandomMember(channel.guild);
-    if (member) {
-      text = pick(MEMBER_QUESTIONS).replace('{mention}', `<@${member.id}>`);
-    }
+    if (member) text = pick(MEMBER_QUESTIONS).replace('{mention}', `<@${member.id}>`);
   }
 
   await channel.sendTyping().catch(() => {});
@@ -310,8 +428,7 @@ async function autoTalk(channel) {
 
 function scheduleAutoTalk() {
   if (!CONFIG.AUTO_CHAT_ENABLED) return;
-
-  const delay = randomBetween(CONFIG.AUTO_TOPIC_MIN_INTERVAL_MS, CONFIG.AUTO_TOPIC_MAX_INTERVAL_MS);
+  const wait = randomBetween(CONFIG.AUTO_TOPIC_MIN_INTERVAL_MS, CONFIG.AUTO_TOPIC_MAX_INTERVAL_MS);
 
   setTimeout(async () => {
     try {
@@ -323,7 +440,7 @@ function scheduleAutoTalk() {
     } finally {
       scheduleAutoTalk();
     }
-  }, delay);
+  }, wait);
 }
 
 async function maybeAutoReply(message, cleanContent) {
@@ -341,149 +458,174 @@ async function maybeAutoReply(message, cleanContent) {
   state.lastAutoReplyAt.set(message.channel.id, Date.now());
   await message.channel.sendTyping().catch(() => {});
 
-  const reply = await getCatReply(
-    message.channel.id,
-    message.author.id,
-    message.author.username,
-    cleanContent
-  );
-
+  const reply = await getCatReply(message.channel.id, message.author.id, message.author.username, cleanContent);
   await safeReply(message, reply);
   return true;
 }
 
+// ═══════════════════════════════════════════════════════════
+//   معالجة أوامر "كات ..."
+// ═══════════════════════════════════════════════════════════
 async function handleCatCommand(message, cleanContent) {
   const args = cleanContent.slice(3).trim().split(/ +/).filter(Boolean);
   const cmd = args[0];
-  const targetUser = message.mentions.users.first();
+  const targetUser   = message.mentions.users.first();
   const targetMember = message.mentions.members.first();
 
   if (!cmd || cmd === 'مساعدة') return safeReply(message, HELP_MESSAGE);
 
-  if (cmd === 'تأديب' || cmd === 'ت') {
-    if (!isPrivileged(message.author.id)) return safeReply(message, 'هذا الأمر ليس لك.');
+  // ─── تأديب ─────────────────────────────
+  if (cmd === 'تأديب') {
+    if (!hasModPerm(message.member)) return safeReply(message, 'هذا الأمر ليس لك.');
     if (!targetMember) return safeReply(message, 'قم بالإشارة إلى العضو أولاً.');
+    if (isProtected(message.guild, targetMember.id)) return safeReply(message, '🛡️ هذا العضو محميّ.');
     await targetMember.timeout(60_000, `Cat discipline by ${message.author.tag}`);
     return safeReply(message, `تم تأديب <@${targetMember.id}> لمدة دقيقة واحدة.`);
   }
 
-  if (cmd === 'سجن' || cmd === 'س') {
-    if (!isPrivileged(message.author.id)) return safeReply(message, 'هذا الأمر ليس لك.');
+  // ─── سجن ───────────────────────────────
+  if (cmd === 'سجن') {
+    if (!hasModPerm(message.member)) return safeReply(message, 'هذا الأمر ليس لك.');
     if (!targetMember) return safeReply(message, 'قم بالإشارة إلى العضو أولاً.');
-
-    const role = message.guild.roles.cache.find((r) => r.name === CONFIG.JAIL_ROLE_NAME);
-    if (!role) return safeReply(message, `لم أجد رتبة باسم ${CONFIG.JAIL_ROLE_NAME}.`);
-
+    if (isProtected(message.guild, targetMember.id)) return safeReply(message, '🛡️ هذا العضو محميّ.');
+    const role = message.guild.roles.cache.find(r => r.name === CONFIG.JAIL_ROLE_NAME);
+    if (!role) return safeReply(message, `لم أجد رتبة باسم "${CONFIG.JAIL_ROLE_NAME}".`);
     await targetMember.roles.add(role);
     return safeReply(message, `تم إدخال <@${targetMember.id}> إلى السجن.`);
   }
 
-  if (cmd === 'تحذير' || cmd === 'تح') {
-    if (!isPrivileged(message.author.id)) return safeReply(message, 'هذا الأمر ليس لك.');
+  // ─── تحذير (تصعيدي) ────────────────────
+  if (cmd === 'تحذير') {
+    if (!hasModPerm(message.member)) return safeReply(message, 'هذا الأمر ليس لك.');
     if (!targetUser) return safeReply(message, 'أشر للعضو واكتب السبب.');
-
     const reason = args.slice(2).join(' ') || 'دون سبب محدد';
-    const count = addWarn(targetUser.id, reason, message.author.tag);
-    return safeReply(message, `تم تحذير <@${targetUser.id}>. إجمالي التحذيرات: ${count}.`);
+    await issueEscalatedWarning(message, targetUser, reason, message.author.tag);
+    return;
   }
 
-  if (cmd === 'السجل' || cmd === 'سج') {
-    if (!isPrivileged(message.author.id)) return safeReply(message, 'هذا الأمر ليس لك.');
+  // ─── السجل ─────────────────────────────
+  if (cmd === 'السجل') {
     if (!targetUser) return safeReply(message, 'أشر للعضو المطلوب.');
-
-    const list = state.warnings.get(targetUser.id) || [];
+    const list = getWarns(targetUser.id);
     if (!list.length) return safeReply(message, 'سجله نظيف... بشكل يثير الشكوك.');
-
-    return safeReply(
-      message,
-      list.map((warn, index) => `${index + 1}. ${warn.reason} - ${warn.by} - ${warn.date}`).join('\n')
-    );
+    return safeReply(message, list.map((w, i) => `${i + 1}. ${w.reason} — ${w.by} (${w.date})`).join('\n'));
   }
 
-  if (cmd === 'مسح_تحذيرات' || cmd === 'مح') {
-    if (!isPrivileged(message.author.id)) return safeReply(message, 'هذا الأمر ليس لك.');
+  // ─── مسح تحذيرات ───────────────────────
+  if (cmd === 'مسح_تحذيرات') {
+    if (!hasModPerm(message.member)) return safeReply(message, 'هذا الأمر ليس لك.');
     if (!targetUser) return safeReply(message, 'أشر للعضو المطلوب.');
-    state.warnings.delete(targetUser.id);
+    clearWarns(targetUser.id);
     return safeReply(message, `تم تطهير سجل تحذيرات <@${targetUser.id}>.`);
   }
 
-  if (cmd === 'لا_تكلمي' || cmd === 'لتك') {
-    if (!isOwner(message.author.id)) return safeReply(message, 'هذا الأمر متاح لسيدي بروس فقط.');
+  // ─── إخراج (كيك) ───────────────────────
+  if (cmd === 'إخراج' || cmd === 'طرد') {
+    if (!hasKickPerm(message.member)) return safeReply(message, 'هذا الأمر ليس لك.');
+    if (!targetMember) return safeReply(message, 'أشر للعضو المطلوب.');
+    if (isProtected(message.guild, targetMember.id)) return safeReply(message, '🛡️ هذا العضو محميّ.');
+    const reason = args.slice(2).join(' ') || 'دون سبب محدد';
+    const ok = await waitConfirm(message, `👢 هل تريدين طرد <@${targetMember.id}>؟`);
+    if (!ok) return;
+    try {
+      await targetMember.kick(reason);
+      await safeSend(message.channel, `👢 غادر <@${targetMember.id}> — لا مكان لضعاف القلوب هنا.\n📋 ${reason}`);
+      await sendLog(message.guild, `👢 **طرد:** <@${targetMember.id}> | ${reason} | ${message.author.tag}`);
+    } catch { return safeReply(message, 'فشل الطرد — تحقق من صلاحياتي.'); }
+    return;
+  }
 
+  // ─── حظر ───────────────────────────────
+  if (cmd === 'حظر') {
+    if (!hasBanPerm(message.member)) return safeReply(message, 'هذا الأمر ليس لك.');
+    if (!targetMember) return safeReply(message, 'أشر للعضو المطلوب.');
+    if (isProtected(message.guild, targetMember.id)) return safeReply(message, '🛡️ هذا العضو محميّ.');
+    const reason = args.slice(2).join(' ') || 'دون سبب محدد';
+    const ok = await waitConfirm(message, `🔨 هل تريدين حظر <@${targetMember.id}> نهائياً؟`);
+    if (!ok) return;
+    try {
+      await targetMember.ban({ reason });
+      await safeSend(message.channel, `🔨 <@${targetMember.id}> خارج اللعبة تماماً.\n📋 ${reason}`);
+      await sendLog(message.guild, `🔨 **حظر:** <@${targetMember.id}> | ${reason} | ${message.author.tag}`);
+    } catch { return safeReply(message, 'فشل الحظر — تحقق من صلاحياتي.'); }
+    return;
+  }
+
+  // ─── لا تكلمي (بروس فقط) ───────────────
+  if (cmd === 'لا_تكلمي') {
+    if (!isOwner(message.author.id)) return safeReply(message, 'هذا الأمر متاح لسيدي بروس فقط.');
     if (targetUser) {
       state.silencedUsers.add(targetUser.id);
       return safeReply(message, `لن أجيب على <@${targetUser.id}> بعد الآن.`);
     }
-
     state.silencedChannels.add(message.channel.id);
     return safeReply(message, 'سألوذ بالصمت في هذه القناة.');
   }
 
-  if (cmd === 'كلمي' || cmd === 'كم') {
+  // ─── كلمي (بروس فقط) ───────────────────
+  if (cmd === 'كلمي') {
     if (!isOwner(message.author.id)) return safeReply(message, 'هذا الأمر متاح لسيدي بروس فقط.');
-
     if (targetUser) {
       state.silencedUsers.delete(targetUser.id);
       return safeReply(message, `عدت للاستماع والإجابة على <@${targetUser.id}>.`);
     }
-
     state.silencedChannels.delete(message.channel.id);
     return safeReply(message, 'عدت للتحدث هنا مجدداً.');
   }
 
-  if (cmd === 'جواهري' || cmd === 'ج') {
+  // ─── جواهري ─────────────────────────────
+  if (cmd === 'جواهري') {
     return safeReply(message, `رصيدك الحالي: **${getGems(message.author.id)} جوهرة**.`);
   }
 
-  if (cmd === 'تفتيش' || cmd === 'تف') {
+  // ─── تفتيش (سرقة) ───────────────────────
+  if (cmd === 'تفتيش') {
     if (!targetUser) return safeReply(message, 'أشر للضحية أولاً.');
     if (targetUser.bot) return safeReply(message, 'أنا لا أسرق الآلات والبوتات.');
     if (onCooldown(`${message.author.id}:steal`, 10 * 60 * 1000)) {
       return safeReply(message, 'تمهل قليلاً... السرقة فن ومهارة، وليست إدماناً.');
     }
-
     const amount = randomBetween(1, 7);
     addGems(message.author.id, amount);
     addGems(targetUser.id, -amount);
     return safeReply(message, `لقد نشلت من <@${targetUser.id}> **${amount} جوهرة** بمنتهى الخفة والرشاقة.`);
   }
 
+  // ─── أوامر مزاح ─────────────────────────
   const funCommands = {
-    بخاخ: `ترش وجه <@${targetUser?.id}> برذاذ الماء. ابتعد أيها المشاغب!`,
-    بخ: `ترش وجه <@${targetUser?.id}> برذاذ الماء. ابتعد أيها المشاغب!`,
-    مكياج: `ترسم شوارب قطة لطيفة على وجه <@${targetUser?.id}>.`,
-    مك: `ترسم شوارب قطة لطيفة على وجه <@${targetUser?.id}>.`,
-    كف: `تصفع <@${targetUser?.id}> صفعة درامية بقفازها الجلدي الأسود.`,
-    تجاهل: `تتجاهل <@${targetUser?.id}> تماماً كأنه قطعة أثاث منسية.`,
-    تج: `تتجاهل <@${targetUser?.id}> تماماً كأنه قطعة أثاث منسية.`,
-    خرش: `تخربش كبرياء <@${targetUser?.id}> بحدة قبل وجهه.`,
-    خ: `تخربش كبرياء <@${targetUser?.id}> بحدة قبل وجهه.`,
-    عض: `تعض <@${targetUser?.id}> عضة تحذيرية رشيقة.`,
-    حضن: `تحتضن <@${targetUser?.id}> بدفء مباغت وغير متوقع.`,
-    حض: `تحتضن <@${targetUser?.id}> بدفء مباغت وغير متوقع.`,
+    بخاخ:  id => `ترش وجه <@${id}> برذاذ الماء. ابتعد أيها المشاغب!`,
+    مكياج: id => `ترسم شوارب قطة لطيفة على وجه <@${id}>.`,
+    كف:    id => `تصفع <@${id}> صفعة درامية بقفازها الجلدي الأسود.`,
+    تجاهل: id => `تتجاهل <@${id}> تماماً كأنه قطعة أثاث منسية.`,
+    خرش:   id => `تخربش كبرياء <@${id}> بحدة قبل وجهه.`,
+    عض:    id => `تعض <@${id}> عضة تحذيرية رشيقة.`,
+    حضن:   id => `تحتضن <@${id}> بدفء مباغت وغير متوقع.`,
   };
 
   if (funCommands[cmd]) {
     if (!targetUser) return safeReply(message, 'قم بالإشارة للضحية أولاً.');
     if (onCooldown(`${message.author.id}:fun`, 4000)) return;
-    return safeReply(message, funCommands[cmd]);
+    return safeReply(message, funCommands[cmd](targetUser.id));
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+//   أحداث العميل
+// ═══════════════════════════════════════════════════════════
 client.once('ready', () => {
-  console.log(`${client.user.tag} غدت جاهزة وعبر الإنترنت!`);
+  console.log(`✅ ${client.user.tag} غدت جاهزة وعبر الإنترنت!`);
   scheduleAutoTalk();
 });
 
-client.on('guildMemberAdd', (member) => {
-  state.gems.set(member.id, 30);
+client.on('guildMemberAdd', member => {
+  if (getGems(member.id) === 0) addGems(member.id, 30);
 });
 
-client.on('messageCreate', async (message) => {
+client.on('messageCreate', async message => {
   try {
     if (message.author.bot || !message.guild) return;
 
-    let cleanContent = message.content.trim();
+    const cleanContent = message.content.trim();
     if (!cleanContent) return;
 
     if (cleanContent.startsWith('كات ') || cleanContent === 'كات') {
@@ -513,13 +655,6 @@ client.on('messageCreate', async (message) => {
       .replace(/<a?:(\w+):(\d+)>/g, '$1')
       .trim();
 
-    const otherMention = message.mentions.users.find((user) => user.id !== client.user.id);
-    if (otherMention) {
-      userMessage = userMessage
-        .replace(new RegExp(`<@!?${otherMention.id}>`, 'g'), `<@${otherMention.id}>`)
-        .trim();
-    }
-
     if (!userMessage) return safeReply(message, 'تنظر إليك بطرف عينها في صمت مريب.');
 
     if (onCooldown(`${message.author.id}:chat`, 3000)) {
@@ -527,13 +662,7 @@ client.on('messageCreate', async (message) => {
     }
 
     await message.channel.sendTyping().catch(() => {});
-    const reply = await getCatReply(
-      message.channel.id,
-      message.author.id,
-      message.author.username,
-      userMessage
-    );
-
+    const reply = await getCatReply(message.channel.id, message.author.id, message.author.username, userMessage);
     return safeReply(message, reply);
   } catch (err) {
     console.error('حدث خطأ أثناء معالجة الرسالة:', err);
