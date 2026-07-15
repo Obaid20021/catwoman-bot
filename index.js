@@ -7,8 +7,8 @@ const fs   = require('fs');
 // ═══════════════════════════════════════════════════════════
 //   إعدادات — كل المفاتيح من متغيرات البيئة فقط
 // ═══════════════════════════════════════════════════════════
-const DISCORD_TOKEN = "MTUwMDE4NzAxODk4MDg4NDUyMA.G1ErUc.hD4SbqBrk0GY5YpsIBX1V_wFYT2kXwTUFhpNDw";
-const GROQ_API_KEY  = "MTUwMDE4NzAxODk4MDg4NDUyMA.G1ErUc.hD4SbqBrk0GY5YpsIBX1V_wFYT2kXwTUFhpNDw";
+const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
+const GROQ_API_KEY  = process.env.GROQ_API_KEY;
 
 if (!DISCORD_TOKEN || !GROQ_API_KEY) {
   console.error('❌ خطأ: تأكد من ضبط DISCORD_TOKEN و GROQ_API_KEY في متغيرات البيئة.');
@@ -23,7 +23,7 @@ const CONFIG = {
   DAHOOM_ID:    process.env.DAHOOM_ID    || '1384582859058053161',
 
   JAIL_ROLE_NAME:   'المسجون',
-  LOG_CHANNEL_ID:   1500133583732478032 || null,
+  LOG_CHANNEL_ID:   process.env.LOG_CHANNEL_ID || null,
 
   AUTO_CHAT_ENABLED: true,
   AUTO_CHAT_CHANNEL_IDS: (process.env.AUTO_CHAT_CHANNEL_IDS || '1500133583732478032').split(','),
@@ -216,8 +216,8 @@ function onCooldown(key, ms) {
 }
 
 function getPersona(userId) {
-  if (userId === CONFIG.OWNER_ID)    return 'عزيزكِ بروس واين (باتمان)';
-  if (userId === CONFIG.MOHAMMED_ID) return 'محمد، الشخص الغالي والمفضل لقلبكِ وتشتاقين له';
+  if (userId === CONFIG.OWNER_ID)    return 'عزيزكِ بروس واين (باتمان) — الأولوية المطلقة دائماً، لا أحد يعلو عليه أو يزاحمه';
+  if (userId === CONFIG.MOHAMMED_ID) return 'محمد، شخص عزيز عليكِ لكن دون أن يتجاوز مكانة بروس أبداً';
   if (userId === CONFIG.JOKER_ID)    return 'الجوكر العدو والمجنون';
   if (userId === CONFIG.COP_ID)      return 'الشرطي الفاسد';
   if (userId === CONFIG.DAHOOM_ID)   return 'دحوم، صديق في الخادم تتعاملين معه بذكاء ولباقة رشيقة وتحدي';
