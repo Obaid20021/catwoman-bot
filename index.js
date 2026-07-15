@@ -23,7 +23,7 @@ const CONFIG = {
   DAHOOM_ID:    process.env.DAHOOM_ID    || '1384582859058053161',
 
   JAIL_ROLE_NAME:   'المسجون',
-  LOG_CHANNEL_ID:   process.env.LOG_CHANNEL_ID || '1500133583732478032',
+  LOG_CHANNEL_ID:   process.env.LOG_CHANNEL_ID || null,
 
   AUTO_CHAT_ENABLED: true,
   AUTO_CHAT_CHANNEL_IDS: (process.env.AUTO_CHAT_CHANNEL_IDS || '1500133583732478032').split(','),
