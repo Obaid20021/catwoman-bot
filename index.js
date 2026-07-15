@@ -8,7 +8,7 @@ const fs   = require('fs');
 //   إعدادات — كل المفاتيح من متغيرات البيئة فقط
 // ═══════════════════════════════════════════════════════════
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
-const GROQ_API_KEY  = process.env.GROQ_API_KEY;
+const GROQ_API_KEY  = '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';
 
 if (!DISCORD_TOKEN || !GROQ_API_KEY) {
   console.error('❌ خطأ: تأكد من ضبط DISCORD_TOKEN و GROQ_API_KEY في متغيرات البيئة.');
