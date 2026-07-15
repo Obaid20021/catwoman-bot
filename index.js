@@ -1,6 +1,6 @@
 try { require('dotenv').config(); } catch {}
 
-const { Client, GatewayIntentBits, PermissionsBitField } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder } = require('discord.js');
 const Groq = require('groq-sdk');
 const fs   = require('fs');
 
@@ -613,9 +613,29 @@ async function handleCatCommand(message, cleanContent) {
 // ═══════════════════════════════════════════════════════════
 //   أحداث العميل
 // ═══════════════════════════════════════════════════════════
-client.once('ready', () => {
+client.once('ready', async () => {
   console.log(`✅ ${client.user.tag} غدت جاهزة وعبر الإنترنت!`);
   scheduleAutoTalk();
+
+  const commands = [
+    new SlashCommandBuilder().setName('كات').setDescription('يعرض دليل أوامر كاتوومان بشكل خاص لك فقط.'),
+  ];
+
+  const rest = new REST({ version: '10' }).setToken(client.token);
+  try {
+    console.log('⏳ جاري تسجيل أمر /كات المخفي...');
+    await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
+    console.log('✅ تم تسجيل أمر /كات بنجاح!');
+  } catch (error) {
+    console.error('فشل تسجيل الأمر المخفي:', error);
+  }
+});
+
+client.on('interactionCreate', async interaction => {
+  if (!interaction.isChatInputCommand()) return;
+  if (interaction.commandName === 'كات') {
+    await interaction.reply({ content: HELP_MESSAGE, ephemeral: true });
+  }
 });
 
 client.on('guildMemberAdd', member => {
@@ -656,7 +676,15 @@ client.on('messageCreate', async message => {
       .replace(/<a?:(\w+):(\d+)>/g, '$1')
       .trim();
 
-    if (!userMessage) return safeReply(message, 'تنظر إليك بطرف عينها في صمت مريب.');
+    if (!userMessage) {
+      const reply = await getCatReply(
+        message.channel.id,
+        message.author.id,
+        message.author.username,
+        '(استدعاني بمنشن دون كتابة أي شيء آخر)'
+      );
+      return safeReply(message, reply);
+    }
 
     if (onCooldown(`${message.author.id}:chat`, 3000)) {
       return safeReply(message, 'تمهل قليلاً... أنا قطة حرة، ولست جهاز رد آلي مبرمج.');
