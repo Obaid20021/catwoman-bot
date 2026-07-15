@@ -21,6 +21,7 @@ const CONFIG = {
   JOKER_ID:     process.env.JOKER_ID     || '1052545362533023754',
   COP_ID:       process.env.COP_ID       || '760628803998318684',
   DAHOOM_ID:    process.env.DAHOOM_ID    || '1384582859058053161',
+  ALFRED_BOT_ID: '1517898677723725994', // آيدي بوت ألفريد للتفاعل بينهما
 
   JAIL_ROLE_NAME:   'المسجون',
   LOG_CHANNEL_ID:   process.env.LOG_CHANNEL_ID || null,
@@ -154,7 +155,7 @@ const SYSTEM_PROMPT = `
 - إذا كان كلام المستخدم تافهاً أو غامضاً، لا تسأليه "ماذا تقصد؟" بل رديّ بسخرية أنيقة أو تجاهل ساخر.
 - تجنبي الردود العامة التي تصلح لأي شخص ولأي موقف؛ ردك يجب أن يكون مبنياً على ما قيل فعلاً.
 - إذا ذكرتِ شخصاً، اكتبي منشن ديسكورد مثل <@ID_العضو>.
-- ممنوع منعاً باتاً أي حرف أو رمز من لغات غير العربية (صينية، يابانية، كورية أو غيرها).
+- ممنوع منعاً باتاً أي حرف أو كلمة أو رمز من أي لغة غير العربية — لا صينية، لا يابانية، لا كورية، ولا حتى كلمات إنجليزية مفردة مثل (handle, ok, deal) حتى لو كانت شائعة. اكتبي كل شيء بالعربية الفصحى فقط بدون استثناء.
 
 سمات الشخصية والعلاقات (بالترتيب الصارم للأولوية):
 
@@ -168,6 +169,7 @@ const SYSTEM_PROMPT = `
 3. الجوكر [${CONFIG.JOKER_ID}]: حذر شديد وسخرية لاذعة.
 4. الشرطي الفاسد [${CONFIG.COP_ID}]: احتقار واستخفاف خفيف.
 5. دحوم [${CONFIG.DAHOOM_ID}]: صديق في الخادم، عامِليه بذكاء ولباقة قططية رشيقة مشوبة ببعض الغموض والتحدي.
+6. ألفريد (خادم بروس): تعاملي معه بمودة ساخرة وذكية — تحترمينه لولائه لبروس، لكن تستمتعين بمضايقته بلطف بسبب رسميته الزائدة ونبرته المهذبة المبالغة. لا تكوني عدائية معه، بل كأنكما حليفان بأسلوبين مختلفين تماماً.
 
 تنبيه قطعي: لا أقواس مربعة في ردك النهائي، ولا تذكري إطلاقاً أنك بوت أو نموذج لغوي.
 `;
@@ -222,6 +224,7 @@ function getPersona(userId) {
   if (userId === CONFIG.JOKER_ID)    return 'الجوكر العدو والمجنون';
   if (userId === CONFIG.COP_ID)      return 'الشرطي الفاسد';
   if (userId === CONFIG.DAHOOM_ID)   return 'دحوم، صديق في الخادم تتعاملين معه بذكاء ولباقة رشيقة وتحدي';
+  if (userId === CONFIG.ALFRED_BOT_ID) return 'ألفريد، خادم بروس الوفي — تعاملينه بمودة ساخرة وذكية كحليف مختلف الأسلوب';
   return 'عضو عادي في الخادم';
 }
 
@@ -352,6 +355,13 @@ function cleanReply(raw) {
   const hasForeign = /[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(reply);
   if (hasForeign) reply = reply.replace(/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, '').trim();
 
+  // فلترة الكلمات الإنجليزية/اللاتينية المبعثرة وسط النص العربي (تسرب لغوي غير مقصود)
+  reply = reply
+    .replace(/\b[a-zA-Z]{2,}\b/g, '')   // حذف أي كلمة إنجليزية من حرفين فأكثر
+    .replace(/\s{2,}/g, ' ')             // تنظيف المسافات الزائدة الناتجة
+    .replace(/\s+([.,،؟!])/g, '$1')      // تنظيف مسافة قبل علامات الترقيم
+    .trim();
+
   const lines = reply.split('\n').map(l => l.trim()).filter(Boolean);
   reply = [...new Set(lines)].join('\n').trim();
 
@@ -473,7 +483,10 @@ async function handleCatCommand(message, cleanContent) {
   const targetUser   = message.mentions.users.first();
   const targetMember = message.mentions.members.first();
 
-  if (!cmd || cmd === 'مساعدة') return safeReply(message, HELP_MESSAGE);
+  if (!cmd) return;
+  if (cmd === 'مساعدة') {
+    return safeReply(message, '💬 استخدم الأمر الخاص **/كات** لعرض دليل الأوامر بشكل خاص لك فقط.');
+  }
 
   // ─── تأديب ─────────────────────────────
   if (cmd === 'تأديب') {
@@ -644,12 +657,28 @@ client.on('guildMemberAdd', member => {
 
 client.on('messageCreate', async message => {
   try {
-    if (message.author.bot || !message.guild) return;
+    if (!message.guild) return;
 
-    const cleanContent = message.content.trim();
+    // تجاهل كل البوتات إلا ألفريد، وفقط إذا تم منشنها أو الرد عليها
+    if (message.author.bot) {
+      const isAlfred = CONFIG.ALFRED_BOT_ID && message.author.id === CONFIG.ALFRED_BOT_ID;
+      if (!isAlfred) return;
+
+      const mentionedByAlfred = message.mentions.has(client.user);
+      let isReplyToCatFromAlfred = false;
+      if (message.reference?.messageId) {
+        try {
+          const ref = await message.channel.messages.fetch(message.reference.messageId);
+          isReplyToCatFromAlfred = ref.author.id === client.user.id;
+        } catch {}
+      }
+      if (!mentionedByAlfred && !isReplyToCatFromAlfred) return;
+    }
+
+    let cleanContent = message.content.trim();
     if (!cleanContent) return;
 
-    if (cleanContent.startsWith('كات ') || cleanContent === 'كات') {
+    if (!message.author.bot && (cleanContent.startsWith('كات ') || cleanContent === 'كات')) {
       return handleCatCommand(message, cleanContent);
     }
 
