@@ -7,8 +7,8 @@ const fs   = require('fs');
 // ═══════════════════════════════════════════════════════════
 //   إعدادات — كل المفاتيح من متغيرات البيئة فقط
 // ═══════════════════════════════════════════════════════════
-const DISCORD_TOKEN = MTUwMDE4NzAxODk4MDg4NDUyMA.G1ErUc.hD4SbqBrk0GY5YpsIBX1V_wFYT2kXwTUFhpNDw;
-const GROQ_API_KEY  = MTUwMDE4NzAxODk4MDg4NDUyMA.G1ErUc.hD4SbqBrk0GY5YpsIBX1V_wFYT2kXwTUFhpNDw;
+const DISCORD_TOKEN = "MTUwMDE4NzAxODk4MDg4NDUyMA.G1ErUc.hD4SbqBrk0GY5YpsIBX1V_wFYT2kXwTUFhpNDw";
+const GROQ_API_KEY  = "MTUwMDE4NzAxODk4MDg4NDUyMA.G1ErUc.hD4SbqBrk0GY5YpsIBX1V_wFYT2kXwTUFhpNDw";
 
 if (!DISCORD_TOKEN || !GROQ_API_KEY) {
   console.error('❌ خطأ: تأكد من ضبط DISCORD_TOKEN و GROQ_API_KEY في متغيرات البيئة.');
