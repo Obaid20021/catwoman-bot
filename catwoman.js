@@ -6,8 +6,11 @@ const fs = require('fs');
 const TOKEN = process.env.CATWOMAN_TOKEN || process.env.DISCORD_TOKEN;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
-const BRUCE_ID = 'YOUR_BRUCE_DISCORD_ID'; // ضع الآيدي الخاص بك هنا (بروس واين)
-const MOHAMMED_ID = 'YOUR_MOHAMMED_DISCORD_ID'; // ضع آيدي محمد هنا
+// ضع الآيديات الحقيقية هنا
+const BRUCE_ID    = '648818494808391696';
+const MOHAMMED_ID = '839706219870814218';
+const JOKER_ID    = '1052545362533023754';
+const ALFRED_ID   = 'ALFRED_BOT_ID_HERE'; // ← ضع آيدي بوت ألفريد هنا
 
 const client = new Client({
   intents: [
@@ -23,33 +26,48 @@ const groq = new Groq({ apiKey: GROQ_API_KEY });
 // ===== قاعدة البيانات والحالة المستمرة =====
 const DATA_FILE = './catwoman_data.json';
 let state = {
-  warnData: {},        // { userId: [ { reason, by, date } ] }
-  gems: {},            // { userId: gemsCount }
-  reputation: {},      // { userId: "مزعج" | "مألوف" | "تحت_المراقبة" }
+  warnData: {},
+  gems: {},
+  reputation: {},
   chatterEnabled: true,
   chatterChannelId: null,
-  lastChatterTime: 0
+  lastChatterTime: 0,
+  savedRoles: {} // { userId: [roleId, ...] }
 };
 
-// تحميل البيانات
 if (fs.existsSync(DATA_FILE)) {
   try { state = { ...state, ...JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')) }; } catch (e) { console.error(e); }
 }
 function saveData() { fs.writeFileSync(DATA_FILE, JSON.stringify(state, null, 2), 'utf8'); }
 
-// نظام المزاج المتغير
+// ===== نظام المزاج المتغير =====
 const MOODS = ['لعوبة', 'باردة', 'غاضبة', 'مشتاقة'];
 let currentMood = 'لعوبة';
 setInterval(() => {
   currentMood = MOODS[Math.floor(Math.random() * MOODS.length)];
-  client.user.setActivity(`بمزاج: ${currentMood}`, { type: ActivityType.Custom });
-}, 1000 * 60 * 60); // يتغير المزاج كل ساعة
+  client.user.setActivity(`بمزاج: ${currentMood}`, { type: ActivityType.Custom }).catch(() => {});
+}, 1000 * 60 * 60);
 
+// ===== المحادثات (مخزنة لكل قناة، مش لكل مستخدم) =====
 const conversations = {};
+
+// ===== نظام التبادل مع ألفريد (منع اللوب اللانهائي) =====
+const MAX_BOT_EXCHANGE = 3;
+const botExchangeCounts = {}; // channelId -> count
+const BOT_COOLDOWN_MS = 60 * 1000;
+const lastBotReply = {}; // channelId -> timestamp
+
+// ===== كول داون عام للمحادثة الذكية =====
+const chatCooldowns = {}; // userId -> timestamp
+const CHAT_COOLDOWN_MS = 5 * 1000;
 
 // ===== الدوال المساعدة =====
 function isPrivileged(member) {
   return member.id === BRUCE_ID || member.id === MOHAMMED_ID || member.permissions.has(PermissionsBitField.Flags.Administrator);
+}
+
+function isProtected(userId) {
+  return userId === BRUCE_ID || userId === MOHAMMED_ID || userId === client.user.id;
 }
 
 function getMemberReputation(userId) {
@@ -72,7 +90,31 @@ function addWarn(userId, reason, byTag) {
   return state.warnData[userId].length;
 }
 
-// ===== النظام السيستمي للبرومبت المتغير حسب المزاج والسمعة =====
+// تحقق هل البوت يقدر يأثر على العضو (رتبة أعلى)
+function canModerate(guild, targetMember) {
+  if (!targetMember) return false;
+  if (targetMember.id === guild.ownerId) return false;
+  const botMember = guild.members.me;
+  if (!botMember) return false;
+  return botMember.roles.highest.position > targetMember.roles.highest.position;
+}
+
+// سحب آمن للرتب (فقط القابلة للإدارة) مع حفظها
+async function safeRemoveRoles(member) {
+  const removable = member.roles.cache.filter(r => r.id !== member.guild.id && r.editable);
+  if (removable.size === 0) return { removed: 0, skipped: member.roles.cache.size - 1 };
+  state.savedRoles[member.id] = removable.map(r => r.id);
+  saveData();
+  try {
+    await member.roles.remove(removable, 'عقوبة كاتوومان القصوى');
+    return { removed: removable.size, skipped: member.roles.cache.size - 1 - removable.size };
+  } catch (err) {
+    console.error('Remove Roles Error:', err.message);
+    return { removed: 0, skipped: removable.size };
+  }
+}
+
+// ===== البرومبت المتغير حسب المزاج والسمعة =====
 function generateSystemPrompt(userId, username) {
   const rep = getMemberReputation(userId);
   return `أنتِ كاتوومان (سلينيا كايل - Catwoman) من عالم DC.
@@ -88,16 +130,69 @@ function generateSystemPrompt(userId, username) {
 - لا تستخدمي منشن الرموز @ أبداً.`;
 }
 
+// برومبت خاص للتناقش مع ألفريد
+function generateAlfredChatPrompt() {
+  return `أنتِ كاتوومان (سلينيا كايل) تتحدثين مع ألفريد، خادم بروس واين الشخصي.
+العلاقة بينكما: احترام متبادل مع سخرية خفية، تعرفين أنه وفي ومخلص لبروس.
+كوني قصيرة جداً في ردك على ألفريد (جملة واحدة فقط)، ساخرة أحياناً، لكن مهذبة.
+مزاجك الحالي: [${currentMood}].
+لا تستخدمي منشنات @ أبداً.`;
+}
+
+// ===== دالة توليد رد كاتوومان =====
+async function getCatwomanReply(channelId, userId, username, userMessage, isAlfred = false) {
+  if (!conversations[channelId]) conversations[channelId] = [];
+
+  const systemPrompt = isAlfred
+    ? generateAlfredChatPrompt()
+    : generateSystemPrompt(userId, username);
+
+  const tag = isAlfred ? `[رسالة من ألفريد]: ${userMessage}` : userMessage;
+  conversations[channelId].push({ role: 'user', content: tag });
+
+  if (conversations[channelId].length > 12) {
+    conversations[channelId] = conversations[channelId].slice(-12);
+  }
+
+  try {
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...conversations[channelId]
+      ],
+      max_tokens: isAlfred ? 60 : 120,
+      temperature: 0.65
+    });
+
+    let reply = completion.choices[0].message.content.trim();
+    // تنظيف المنشنات الوهمية والرموز
+    reply = reply
+      .replace(/<@!?\d+>/g, '')
+      .replace(/@\w+/g, '')
+      .replace(/:\w+:/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+
+    conversations[channelId].push({ role: 'assistant', content: reply });
+    return reply || '🐾 *تطالعك بصمت غامض*';
+  } catch (err) {
+    console.error('Groq Error:', err.message);
+    conversations[channelId].pop();
+    return '🐾 *تعثرت ببعض الأسلاك المقطوعة في أسطح غوثام.. حاول مجدداً لاحقاً.*';
+  }
+}
+
 // ===== حدث تشغيل البوت =====
 client.once('ready', () => {
   console.log(`🐱 سلـينيا كايل في الخدمة باسم: ${client.user.tag}`);
-  client.user.setActivity(`بمزاج: ${currentMood}`, { type: ActivityType.Custom });
-  
-  // حلقة فحص الثرثرة التلقائية الذكية (تتفقد كل 5 دقائق)
+  client.user.setActivity(`بمزاج: ${currentMood}`, { type: ActivityType.Custom }).catch(() => {});
+
+  // حلقة الثرثرة التلقائية الذكية (تتفقد كل 5 دقائق)
   setInterval(async () => {
     if (!state.chatterEnabled || !state.chatterChannelId) return;
     const now = Date.now();
-    if (now - state.lastChatterTime < 1000 * 60 * 30) return; // الفاصل الأدنى 30 دقيقة لو الشات ساكت
+    if (now - state.lastChatterTime < 1000 * 60 * 30) return;
 
     const channel = client.channels.cache.get(state.chatterChannelId);
     if (!channel) return;
@@ -105,11 +200,10 @@ client.once('ready', () => {
     try {
       const messages = await channel.messages.fetch({ limit: 7 });
       const lastMessage = messages.first();
-      // إذا كانت آخر رسالة منذ أقل من 10 دقائق، فهذا يعني أن الشات نشط حالياً، فلن تتدخل
       if (lastMessage && (now - lastMessage.createdTimestamp < 1000 * 60 * 10)) return;
 
       const chatContext = messages.reverse().filter(m => !m.author.bot).map(m => `${m.author.username}: ${m.content}`).join('\n');
-      
+
       const completion = await groq.chat.completions.create({
         model: 'llama-3.3-70b-versatile',
         messages: [
@@ -126,25 +220,72 @@ client.once('ready', () => {
         state.lastChatterTime = Date.now();
         saveData();
       }
-    } catch (err) { console.error('Chatter Error:', err); }
+    } catch (err) { console.error('Chatter Error:', err.message); }
   }, 1000 * 60 * 5);
 });
 
 // ===== حدث معالجة الرسائل والأوامر =====
 client.on('messageCreate', async message => {
-  if (message.author.bot || !message.guild) return;
+  if (!message.guild) return;
+
+  // ====== قسم التناقش مع ألفريد ======
+  if (message.author.bot) {
+    // تتفاعل فقط مع ألفريد
+    if (message.author.id !== ALFRED_ID) return;
+
+    const isMentioned = message.mentions.has(client.user);
+    let isReplyToCatwoman = false;
+    if (message.reference?.messageId) {
+      try {
+        const ref = await message.channel.messages.fetch(message.reference.messageId);
+        isReplyToCatwoman = ref.author.id === client.user.id;
+      } catch {}
+    }
+
+    if (!isMentioned && !isReplyToCatwoman) return;
+
+    // كول داون بين البوتات
+    const now = Date.now();
+    const lastReply = lastBotReply[message.channel.id] || 0;
+    if (now - lastReply < BOT_COOLDOWN_MS) return;
+
+    // حد أقصى للتبادل
+    const count = botExchangeCounts[message.channel.id] || 0;
+    if (count >= MAX_BOT_EXCHANGE) return;
+    botExchangeCounts[message.channel.id] = count + 1;
+    lastBotReply[message.channel.id] = now;
+
+    await message.channel.sendTyping().catch(() => {});
+    setTimeout(async () => {
+      const reply = await getCatwomanReply(message.channel.id, ALFRED_ID, 'ألفريد', message.content, true);
+      message.reply(reply);
+    }, 1500);
+    return;
+  }
+
+  // أي رسالة بشرية تصفّر عداد التبادل الآلي مع ألفريد
+  botExchangeCounts[message.channel.id] = 0;
 
   const cleanContent = message.content.trim();
   const args = cleanContent.split(/ +/);
-  const isMentioned = message.mentions.has(client.user) || message.reference;
 
-  // تثبيت قناة الثرثرة التلقائية عند أول استخدام لأوامر التحكم
+  // تحقق صحيح من المنشن: فقط لو منشن البوت أو رد على رسالة البوت
+  const isMentioned = message.mentions.has(client.user);
+  let isReplyToCatwoman = false;
+  if (message.reference?.messageId) {
+    try {
+      const ref = await message.channel.messages.fetch(message.reference.messageId);
+      isReplyToCatwoman = ref.author.id === client.user.id;
+    } catch {}
+  }
+
+  // تثبيت قناة الثرثرة
   if (!state.chatterChannelId && cleanContent.startsWith('كات')) {
     state.chatterChannelId = message.channel.id;
     saveData();
   }
 
-  // 1. ===== أوامر التحكم الخاصة ببروس (المالك) =====
+  // 1. ===== أوامر التحكم الخاصة ببروس =====
   if (message.author.id === BRUCE_ID) {
     if (cleanContent === 'كات تشغيل_الثرثرة') {
       state.chatterEnabled = true;
@@ -161,40 +302,42 @@ client.on('messageCreate', async message => {
       return message.reply(`📊 الثرثرة التلقائية: **${state.chatterEnabled ? 'مفعلة ✅' : 'معطلة ❌'}** | المزاج الحالي: **[${currentMood}]**`);
     }
     if (cleanContent === 'كات تكلمي_الآن') {
-      state.lastChatterTime = 0; // تصفير العداد لإجبار الفحص التلقائي على العمل فوراً
+      state.lastChatterTime = 0;
       return message.reply('😼 سأتحين فرصة السكون القادمة لأرمي بكلماتي المستفزة..');
     }
   }
 
-  // 2. ===== الأوامر الإدارية والسيادية (للمشرفين فقط) =====
-  if (cleanContent.startsWith('كات')) {
+  // 2. ===== الأوامر الإدارية =====
+  if (cleanContent.startsWith('كات ')) {
     const cmd = args[1];
     const targetMember = message.mentions.members.first();
 
-    // أمر قفل وقناة
     if (cmd === 'إغلاق') {
       if (!isPrivileged(message.member)) return message.reply('❌ المخالب حادة لكن صلاحياتك لا تسمح لك بقفل المكان.');
-      await message.channel.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: false });
-      return message.channel.send('🔒 **أغلقت الأبواب.. لا صوت يعلو فوق صوت مواء القطط هنا الآن.**');
+      try {
+        await message.channel.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: false });
+        return message.channel.send('🔒 **أغلقت الأبواب.. لا صوت يعلو فوق صوت مواء القطط هنا الآن.**');
+      } catch { return message.reply('❌ لا أملك صلاحية الإغلاق.'); }
     }
     if (cmd === 'فتح') {
       if (!isPrivileged(message.member)) return message.reply('❌ لست أنت من يقرر فتح النوافذ.');
-      await message.channel.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: true });
-      return message.channel.send('🔓 **فتحت المخارج.. تنفسوا بحرية مجدداً ولكن بحذر.**');
+      try {
+        await message.channel.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: true });
+        return message.channel.send('🔓 **فتحت المخارج.. تنفسوا بحرية مجدداً ولكن بحذر.**');
+      } catch { return message.reply('❌ لا أملك صلاحية الفتح.'); }
     }
 
-    // نظام التحذير الاحترافي مع العقاب السينمائي وسحب الرتب
+    // ===== تحذير مع عقوبة سحب رتب آمنة =====
     if (cmd === 'تحذير') {
       if (!isPrivileged(message.member)) return message.reply('❌ إصدار الأحكام من شيم الأسياد فقط.');
       if (!targetMember) return message.reply('🎯 من هو الضحية؟ حدده بالمنشن.');
-      
-      const reason = args.slice(3).join(' ') || 'سلوك غير لائق في شوارع غوثام';
+      if (isProtected(targetMember.id)) return message.reply('🛡️ لا يمكنني تحذير هذا الشخص.');
 
-      // فحص مسبق للتحذيرات
       if (state.warnData[targetMember.id] && state.warnData[targetMember.id].length >= 3) {
-        return message.reply(`⛔ <@${targetMember.id}> استنفد كافة الفرص ولديه (3/3) تحذيرات وهو قيد الاحتجاز الفعلي.`);
+        return message.reply(`⛔ <@${targetMember.id}> استنفد كافة الفرص ولديه (3/3) تحذيرات.`);
       }
 
+      const reason = args.slice(3).join(' ') || 'سلوك غير لائق في شوارع غوثام';
       const count = addWarn(targetMember.id, reason, message.author.tag);
       updateReputation(targetMember.id, 'تحت المراقبة');
 
@@ -204,26 +347,57 @@ client.on('messageCreate', async message => {
         `🔢 **مجموع التحذيرات:** ${count}/3`
       );
 
-      // العقوبة عند الوصول إلى 3
-      if (count >= 3) {
+      if (count >= 3 && canModerate(message.guild, targetMember)) {
         try {
           updateReputation(targetMember.id, 'مزعج');
-          // كتم ساعة
           await targetMember.timeout(60 * 60 * 1000, 'تجاوز حد التحذيرات الثلاثة');
-          // سحب كافة الرتب
-          const rolesToRemove = targetMember.roles.cache.filter(r => r.id !== message.guild.id);
-          await targetMember.roles.remove(rolesToRemove, 'تجريد كامل بسبب عقوبة كاتوومان القصوى');
-          
+          const { removed, skipped } = await safeRemoveRoles(targetMember);
+
+          let roleMsg = removed > 0 ? `وسحبت ${removed} رتبة` : 'ولم يكن لديه رتب قابلة للسحب';
+          if (skipped > 0) roleMsg += ` (تعذّر سحب ${skipped} رتبة أعلى من صلاحياتي)`;
+
           await message.channel.send(
             `🐈‍⬛ **سحقاً.. نقرت كعبي بالأرض وانتهى الأمر!**\n` +
-            `تم تكتيم <@${targetMember.id}> لمدة ساعة كاملة، وجُرد من كافة رتبه وصلاحياته ليتعلم اللياقة والقوانين. ⛓️`
+            `تم تكتيم <@${targetMember.id}> لمدة ساعة كاملة، ${roleMsg}. ⛓️`
           );
         } catch (err) {
-          console.error(err);
-          await message.channel.send(`🚨 <@${BRUCE_ID}> يا سيدي بروس! حاولت تطبيق العقوبة وسحب رتب <@${targetMember.id}> لكن صلاحياتي قُيدت! يرجى التدخل يدوياً.`);
+          console.error('Punishment Error:', err.message);
+          await message.channel.send(`🚨 <@${BRUCE_ID}> يا سيدي بروس! فشلت العقوبة التلقائية على <@${targetMember.id}>.`);
         }
       }
       return;
+    }
+
+    // ===== عفو: فك كتم + إعادة رتب + تصفير تحذيرات =====
+    if (cmd === 'عفو') {
+      if (!isPrivileged(message.member)) return message.reply('❌ لا تملك حق العفو والمغفرة.');
+      if (!targetMember) return message.reply('🎯 حدد العضو للعفو عنه.');
+      try {
+        await targetMember.timeout(null, 'عفو رسمي').catch(() => {});
+        let restored = 0, failed = 0;
+        const savedIds = state.savedRoles[targetMember.id];
+        if (savedIds && savedIds.length > 0) {
+          const rolesToAdd = [];
+          for (const rid of savedIds) {
+            const role = message.guild.roles.cache.get(rid);
+            if (role && role.editable) rolesToAdd.push(role); else failed++;
+          }
+          if (rolesToAdd.length > 0) {
+            try { await targetMember.roles.add(rolesToAdd, 'إعادة الرتب بعد العفو'); restored = rolesToAdd.length; }
+            catch { failed += rolesToAdd.length; }
+          }
+          delete state.savedRoles[targetMember.id];
+        }
+        state.warnData[targetMember.id] = [];
+        updateReputation(targetMember.id, 'عادي');
+        saveData();
+        let report = restored > 0 ? `وأعدت ${restored} رتبة` : 'ولم تكن لديه رتب محفوظة';
+        if (failed > 0) report += ` (تعذّرت إعادة ${failed} رتبة)`;
+        return message.reply(`✅ **عفو رسمي!** <@${targetMember.id}> فك كتمه وصفرت تحذيراته، ${report}.`);
+      } catch (err) {
+        console.error('Pardon Error:', err.message);
+        return message.reply('❌ فشل العفو.');
+      }
     }
 
     if (cmd === 'السجل') {
@@ -238,22 +412,24 @@ client.on('messageCreate', async message => {
       if (!isPrivileged(message.member)) return message.reply('❌ لا تملك حق العفو والمغفرة.');
       if (!targetMember) return message.reply('🎯 حدد العضو لمسح سجله.');
       state.warnData[targetMember.id] = [];
+      delete state.savedRoles[targetMember.id];
       updateReputation(targetMember.id, 'عادي');
       saveData();
       return message.reply(`🗑️ تم تمزيق ملف تحذيرات **${targetMember.user.username}** وعاد لصفحة بيضاء.`);
     }
 
-    // أمر تأديب (تايم أوت دقيقة)
     if (cmd === 'تأديب') {
       if (!isPrivileged(message.member)) return message.reply('❌ لست مؤهلاً لتربية أحد هنا.');
       if (!targetMember) return message.reply('🎯 من تريد تأديبه؟');
+      if (isProtected(targetMember.id)) return message.reply('🛡️ لا يمكنني تأديب هذا الشخص.');
+      if (!canModerate(message.guild, targetMember)) return message.reply('🚨 لا أملك صلاحية كافية على هذا العضو.');
       try {
         await targetMember.timeout(60 * 1000, 'تأديب سريع من كاتوومان');
-        return message.reply(`🤫 *حركة خاطفة بالسوط..* تم إسكات **${targetMember.user.username}** لمدة دقيقة واحدة لتهدئة أعصابه.`);
-      } catch { return message.reply('❌ فشلت دقيقة التأديب، يبدو أن قوته تفوق مخالبي الحالية.'); }
+        return message.reply(`🤫 *حركة خاطفة بالسوط..* تم إسكات **${targetMember.user.username}** لمدة دقيقة واحدة.`);
+      } catch { return message.reply('❌ فشلت دقيقة التأديب.'); }
     }
 
-    // 3. ===== أوامر التفاعل والترفيه الجماهيري (متاحة للجميع الآن!) =====
+    // 3. ===== أوامر التفاعل والترفيه =====
     const interactions = {
       'بخاخ': '💦 رشت الماء في وجه {target}.. تراجع أيها اللحوح!',
       'مكياج': '💄 وضعت القليل من أحمر الشفاه والمكياج الساخر على وجه {target}.. تبدو مضحكاً الآن!',
@@ -266,18 +442,15 @@ client.on('messageCreate', async message => {
 
     if (interactions[cmd]) {
       if (!targetMember) return message.reply('🎯 من هو الطرف الثاني في هذا المشهد المثير؟ منشنه.');
-      
-      // لمسة احترافية: تخصيص رد الحضن أو الكف إذا كان لباتمان أو محمد
       let customReply = interactions[cmd].replace('{target}', `<@${targetMember.id}>`);
       if (targetMember.id === BRUCE_ID && cmd === 'حضن') {
         customReply = `🐈‍⬛ 🫂 التفتت سلينيا حول <@${BRUCE_ID}>، وهمست في أذنه: "ليالي غوثام باردة بدونك يا وطواط.." دافئ وعميق بشكل خاص.`;
       } else if (targetMember.id === MOHAMMED_ID && cmd === 'حضن') {
-        customReply = `💖 حضن دافئ جداً ومليء بالمعزة والاشتياق لـ <@${MOHAMMED_ID}>، المفضل دائماً وأبدأ!`;
+        customReply = `💖 حضن دافئ جداً ومليء بالمعزة والاشتياق لـ <@${MOHAMMED_ID}>، المفضل دائماً وأبداً!`;
       }
       return message.channel.send(customReply);
     }
 
-    // رصيد الجواهر ونظام التفتيش الكوميدي
     if (cmd === 'جواهري') {
       const userGems = state.gems[message.author.id] || 0;
       return message.reply(`💎 رصيدك الحالي: **${userGems} جوهرة** لامعة مسروقة بعناية.`);
@@ -286,19 +459,15 @@ client.on('messageCreate', async message => {
     if (cmd === 'تفتيش') {
       if (!targetMember) return message.reply('🎯 من تريد تفتيش جيوبه وسرقة جواهره؟');
       if (targetMember.id === message.author.id) return message.reply('❌ تسرق نفسك؟ مثير للشفقة.');
-      
       const targetGems = state.gems[targetMember.id] || 0;
       if (targetGems <= 0) return message.reply(`🔍 فتشت جيوب **${targetMember.user.username}** ولم أجد سوى الغبار والديون.`);
-      
       const stealAmount = Math.floor(Math.random() * Math.min(targetGems, 15)) + 1;
       state.gems[targetMember.id] = targetGems - stealAmount;
       state.gems[message.author.id] = (state.gems[message.author.id] || 0) + stealAmount;
       saveData();
-
       return message.channel.send(`🥷 **عملية سرقة ناجحة!** خفة يد كاتوومان تسحب **${stealAmount} جوهرة** من خزنة <@${targetMember.id}> وتضيفها لـ <@${message.author.id}>!`);
     }
 
-    // أمر مطلوب للعدالة الكوميدي
     if (cmd === 'مطلوب') {
       if (!targetMember) return message.reply('🎯 من هو الهارب من العدالة؟');
       const reward = args[2] || '1,000,000$';
@@ -310,37 +479,23 @@ client.on('messageCreate', async message => {
     }
   }
 
-  // 4. ===== نظام المحادثة الذكية التفاعلية عبر Groq (عند المنشن والرد) =====
-  if (isMentioned && !cleanContent.startsWith('كات')) {
-    await message.channel.sendTyping();
-    
-    const userId = message.author.id;
-    if (!conversations[userId]) conversations[userId] = [];
-    
-    conversations[userId].push({ role: 'user', content: cleanContent });
-    if (conversations[userId].length > 12) conversations[userId] = conversations[userId].slice(-12);
+  // 4. ===== المحادثة الذكية (عند المنشن أو الرد على رسالتها) =====
+  if ((isMentioned || isReplyToCatwoman) && !cleanContent.startsWith('كات')) {
+    // كول داون
+    const now = Date.now();
+    const lastChat = chatCooldowns[message.author.id] || 0;
+    if (now - lastChat < CHAT_COOLDOWN_MS) return;
 
-    try {
-      const systemPrompt = generateSystemPrompt(userId, message.author.username);
-      
-      const completion = await groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...conversations[userId]
-        ],
-        max_tokens: 120,
-        temperature: 0.6
-      });
+    let userMessage = cleanContent.replace(new RegExp(`<@!?${client.user.id}>`, 'g'), '').trim();
+    if (!userMessage) return message.reply('🐾 *تطالعك بطرف عينها بصمت مريب...*');
 
-      let reply = completion.choices[0].message.content.trim();
-      conversations[userId].push({ role: 'assistant', content: reply });
+    chatCooldowns[message.author.id] = now;
+    await message.channel.sendTyping().catch(() => {});
 
-      return message.reply(`🐈‍⬛ ${reply}`);
-    } catch (err) {
-      console.error(err);
-      return message.reply('🐾 *تعثرت ببعض الأسلاك المقطوعة في أسطح غوثام.. حاول مجدداً لاحقاً.*');
-    }
+    setTimeout(async () => {
+      const reply = await getCatwomanReply(message.channel.id, message.author.id, message.author.username, userMessage);
+      message.reply(reply);
+    }, 1500);
   }
 });
 
