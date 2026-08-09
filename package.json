@@ -9,7 +9,7 @@
   "dependencies": {
     "@google/genai": "^0.1.1",
     "discord.js": "^14.14.1",
-    "better-sqlite3": "^9.4.3",
+    "sqlite3": "^5.1.7",
     "dotenv": "^16.4.5"
   }
 }
