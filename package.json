@@ -11,5 +11,6 @@
     "discord.js": "^14.14.1",
     "sqlite3": "^5.1.7",
     "dotenv": "^16.4.5"
+    "@google/generative-ai": "^0.21.0"
   }
 }
