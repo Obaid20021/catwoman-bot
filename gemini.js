@@ -3,8 +3,10 @@ const config = require('./config');
 const { CAT_PERSONA } = require('./persona');
 
 const genAI = new GoogleGenerativeAI(config.GEMINI_API_KEY);
+
+// استخدام الموديل المستقر المباشر
 const model = genAI.getGenerativeModel({
-  model: 'gemini-1.5-flash',
+  model: 'gemini-2.5-flash',
   systemInstruction: CAT_PERSONA,
 });
 
