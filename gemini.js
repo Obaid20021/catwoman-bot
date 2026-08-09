@@ -4,9 +4,9 @@ const { CAT_PERSONA } = require('./persona');
 
 const genAI = new GoogleGenerativeAI(config.GEMINI_API_KEY);
 
-// استخدام الموديل المستقر المباشر
+// استخدام موديل gemini-1.5-flash المباشر والرسمي
 const model = genAI.getGenerativeModel({
-  model: 'gemini-2.5-flash',
+  model: 'gemini-1.5-flash',
   systemInstruction: CAT_PERSONA,
 });
 
