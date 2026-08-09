@@ -1,27 +1,32 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const axios = require('axios');
 const config = require('./config');
 const { CAT_PERSONA } = require('./persona');
 
-// تهيئة المكتبة الرسمية
-const genAI = new GoogleGenerativeAI(config.GEMINI_API_KEY);
-
 async function generateResponse(userName, messageText) {
   try {
-    // إعداد الموديل مع الشخصية (System Instruction)
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
-      systemInstruction: CAT_PERSONA,
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${config.GEMINI_API_KEY}`;
+
+    const payload = {
+      system_instruction: {
+        parts: [{ text: CAT_PERSONA }]
+      },
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: `[المستخدم ${userName}]: ${messageText}` }]
+        }
+      ]
+    };
+
+    const response = await axios.post(url, payload, {
+      headers: { 'Content-Type': 'application/json' }
     });
 
-    const prompt = `[المستخدم ${userName}]: ${messageText}`;
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-
-    return text ? text.trim() : 'عذراً، لم أستطع فهم ذلك... 🐾';
+    const reply = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    return reply ? reply.trim() : 'عذراً، لم أستطع فهم ذلك... 🐾';
 
   } catch (error) {
-    console.error('Gemini SDK Error:', error);
+    console.error('Gemini API Error:', error.response?.data || error.message);
     return 'عذراً يا صديقي، واجهت مشكلة بسيطة أثناء التفكير... 🐾';
   }
 }
