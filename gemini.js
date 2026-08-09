@@ -4,7 +4,6 @@ const { CAT_PERSONA } = require('./persona');
 
 let activeModel = null;
 
-// دالة لاكتشاف الموديل الشغال في حسابك تلقائياً
 async function getWorkingModel() {
   if (activeModel) return activeModel;
 
@@ -14,24 +13,25 @@ async function getWorkingModel() {
     );
     const models = res.data?.models || [];
     
-    // البحث عن أول موديل يدعم generateContent
+    // استبعاد الموديلات التي تعطي 404 واختيار الموديلات المعتمدة فقط
     const validModel = models.find(m => 
       m.supportedGenerationMethods?.includes('generateContent') &&
-      m.name.includes('flash')
-    ) || models.find(m => m.supportedGenerationMethods?.includes('generateContent'));
+      !m.name.includes('2.5') &&
+      (m.name.includes('1.5-flash') || m.name.includes('1.5-pro'))
+    );
 
     if (validModel) {
-      // إزالة سابقة models/ إن وجدت
       activeModel = validModel.name.replace('models/', '');
-      console.log(`[Gemini] Model selected: ${activeModel}`);
+      console.log(`[Gemini] Model selected successfully: ${activeModel}`);
       return activeModel;
     }
   } catch (err) {
     console.error('Failed to list models:', err.response?.data || err.message);
   }
 
-  // افتراضي في حال فشل القائمة
-  return 'gemini-1.5-flash';
+  // الموديل الافتراضي المضمون
+  activeModel = 'gemini-1.5-flash';
+  return activeModel;
 }
 
 async function generateResponse(userName, messageText) {
@@ -60,7 +60,7 @@ async function generateResponse(userName, messageText) {
 
   } catch (error) {
     console.error('Gemini Execution Error:', error.response?.data || error.message);
-    // إرست الموديل المحفوظ في حال حدث خطأ لإعادة اكتشافه في الطلب القادم
+    // تصفير الموديل في حال حدث أي خطأ لإعادة البحث
     activeModel = null;
     return 'عذراً يا صديقي، واجهت مشكلة بسيطة أثناء التفكير... 🐾';
   }
