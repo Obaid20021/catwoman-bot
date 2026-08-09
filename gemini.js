@@ -1,20 +1,21 @@
-const { GoogleGenAI } = require('@google/genai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const config = require('./config');
 const { CAT_PERSONA } = require('./persona');
 
-const ai = new GoogleGenAI({ apiKey: config.GEMINI_API_KEY });
+const genAI = new GoogleGenerativeAI(config.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({
+  model: 'gemini-1.5-flash',
+  systemInstruction: CAT_PERSONA,
+});
 
 async function generateResponse(userName, messageText) {
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: `[المستخدم ${userName}]: ${messageText}`,
-      config: {
-        systemInstruction: CAT_PERSONA,
-      },
-    });
+    const prompt = `[المستخدم ${userName}]: ${messageText}`;
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
 
-    return response.text ? response.text.trim() : 'عذراً، لم أستطع فهم ذلك... 🐾';
+    return text ? text.trim() : 'عذراً، لم أستطع فهم ذلك... 🐾';
   } catch (error) {
     console.error('Gemini Error:', error);
     return 'عذراً يا صديقي، واجهت مشكلة بسيطة أثناء التفكير... 🐾';
