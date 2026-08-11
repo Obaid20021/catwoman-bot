@@ -2,41 +2,41 @@ const axios = require('axios');
 const config = require('./config');
 const { CAT_PERSONA } = require('./persona');
 
-let cachedModel = null;
+let activeModel = null;
 
-// البحث التلقائي عن الموديل المتاح في حسابك
-async function getValidModel() {
-  if (cachedModel) return cachedModel;
+async function getWorkingModel() {
+  if (activeModel) return activeModel;
 
   try {
     const res = await axios.get(
       `https://generativelanguage.googleapis.com/v1beta/models?key=${config.GEMINI_API_KEY}`
     );
-    
     const models = res.data?.models || [];
-    // اختيار أول موديل يدعم generateContent
-    const workingModel = models.find(m => 
+    
+    // فلترة واستبعاد موديلات 2.5 واختيار 1.5-flash أو 1.5-pro فقط
+    const validModel = models.find(m => 
       m.supportedGenerationMethods?.includes('generateContent') &&
-      (m.name.includes('flash') || m.name.includes('pro'))
+      !m.name.includes('2.5') &&
+      (m.name.includes('1.5-flash') || m.name.includes('1.5-pro'))
     );
 
-    if (workingModel) {
-      cachedModel = workingModel.name; // الاسم يرجع كاملاً مثل: models/gemini-1.5-flash
-      console.log(`[Gemini] Model selected: ${cachedModel}`);
-      return cachedModel;
+    if (validModel) {
+      activeModel = validModel.name; // يأتي بالصيغة الصحيحة: models/gemini-1.5-flash
+      console.log(`[Gemini] Model selected successfully: ${activeModel}`);
+      return activeModel;
     }
   } catch (err) {
-    console.error('Failed to auto-detect model:', err.response?.data || err.message);
+    console.error('Failed to list models:', err.response?.data || err.message);
   }
 
-  // كخيار احتياطي
-  return 'models/gemini-1.5-flash';
+  // خيار احتياطي مضمون
+  activeModel = 'models/gemini-1.5-flash';
+  return activeModel;
 }
 
 async function generateResponse(userName, messageText) {
   try {
-    const modelPath = await getValidModel();
-    // بناء الرابط بشكل صحيح بدون تكرار models/
+    const modelPath = await getWorkingModel();
     const url = `https://generativelanguage.googleapis.com/v1beta/${modelPath}:generateContent?key=${config.GEMINI_API_KEY}`;
 
     const payload = {
@@ -60,8 +60,7 @@ async function generateResponse(userName, messageText) {
 
   } catch (error) {
     console.error('Gemini Execution Error:', error.response?.data || error.message);
-    // تصفير الموديل في حال حدث أي خطأ لإعادة المحاولة
-    cachedModel = null;
+    activeModel = null;
     return 'عذراً يا صديقي، واجهت مشكلة بسيطة أثناء التفكير... 🐾';
   }
 }
