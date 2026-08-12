@@ -1,7 +1,7 @@
 {
   "name": "catwoman-bot",
   "version": "1.0.0",
-  "description": "",
+  "description": "بوت كاتوومان - مساعد ذكي في ديسكورد",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
