@@ -30,7 +30,7 @@ function setupHandlers(client) {
 
       const finalText = cleanText || 'مرحباً يا كات!';
 
-      const reply = await generateResponse(message.author.username, finalText);
+      const reply = await generateResponse(message.author.id, message.author.username, finalText);
       await message.reply(reply);
     } catch (err) {
       console.error('❌ خطأ في معالجة الرسالة:', err.message);
