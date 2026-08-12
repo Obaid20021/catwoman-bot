@@ -5,28 +5,35 @@ const { initDb, logUserActivity } = require('./db');
 function setupHandlers(client) {
   client.once(Events.ClientReady, (readyClient) => {
     initDb();
-    console.log(`✅ البوت ${readyClient.user.tag} يعمل بنجاح وجاهز!`);
+    console.log(`✅ البوت جاهز، وسجل الدخول باسم ${readyClient.user.tag}`);
   });
 
   client.on(Events.MessageCreate, async (message) => {
-    if (message.author.bot) return;
+    try {
+      if (message.author.bot) return;
+      if (!message.guild) return;
 
-    // تسجيل النشاط
-    logUserActivity(message.author.id, message.author.username);
+      // تسجيل النشاط
+      logUserActivity(message.author.id, message.author.username);
 
-    // الرد عند المنشن أو ذكر اسم "كات"
-    const isMentioned = message.mentions.has(client.user.id);
-    const hasName = message.content.includes('كات');
+      // الرد عند المنشن أو ذكر اسم "كات"
+      const isMentioned = message.mentions.has(client.user);
+      const hasName = message.content.includes('كات');
 
-    if (isMentioned || hasName) {
+      if (!isMentioned && !hasName) return;
+
       await message.channel.sendTyping();
 
       const cleanText = message.content
         .replace(new RegExp(`<@!?${client.user.id}>`, 'g'), '')
-        .trim() || 'مرحباً يا كات!';
+        .trim();
 
-      const reply = await generateResponse(message.author.displayName, cleanText);
+      const finalText = cleanText || 'مرحباً يا كات!';
+
+      const reply = await generateResponse(message.author.username, finalText);
       await message.reply(reply);
+    } catch (err) {
+      console.error('❌ خطأ في معالجة الرسالة:', err.message);
     }
   });
 }
