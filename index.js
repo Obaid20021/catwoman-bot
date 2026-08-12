@@ -14,7 +14,7 @@ const client = new Client({
 setupHandlers(client);
 
 if (!config.DISCORD_TOKEN) {
-  console.error('❌ خطأ: لم يتم العثور على DISCORD_TOKEN في متغيرات البيئة!');
+  console.error('❌ خطأ: لم يتم العثور على DISCORD_TOKEN في متغيرات البيئة.');
 } else {
   client.login(config.DISCORD_TOKEN);
 }
