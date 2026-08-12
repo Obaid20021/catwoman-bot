@@ -2,6 +2,6 @@ require('dotenv').config();
 
 module.exports = {
   DISCORD_TOKEN: process.env.DISCORD_TOKEN,
-  GEMINI_API_KEY: process.env.GEMINI_API_KEY,
-  DATABASE_PATH: './story.db'
+  GROQ_API_KEY: process.env.GROQ_API_KEY,
+  DATABASE_PATH: process.env.DATABASE_PATH || './story.db',
 };
