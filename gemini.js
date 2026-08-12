@@ -1,10 +1,15 @@
 const axios = require('axios');
 const { CAT_PERSONA } = require('./persona');
 
-const GROQ_API_KEY = process.env.GROQ_API_KEY || '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';
-
 async function generateResponse(userName, messageText) {
   try {
+    const apiKey = process.env.GROQ_API_KEY;
+
+    if (!apiKey) {
+      console.error('GROQ_API_KEY is missing in Railway Variables!');
+      return 'عذراً، مفتاح الـ API غير معرف في متغيرات البيئة... 🐾';
+    }
+
     const response = await axios.post(
       'https://api.groq.com/openai/v1/chat/completions',
       {
@@ -23,7 +28,7 @@ async function generateResponse(userName, messageText) {
       },
       {
         headers: {
-          'Authorization': `Bearer ${GROQ_API_KEY}`,
+          'Authorization': `Bearer ${apiKey.trim()}`,
           'Content-Type': 'application/json'
         }
       }
