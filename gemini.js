@@ -6,8 +6,8 @@ async function generateResponse(userName, messageText) {
     const apiKey = process.env.GROQ_API_KEY;
 
     if (!apiKey) {
-      console.error('GROQ_API_KEY is missing in Railway Variables!');
-      return 'عذراً، مفتاح الـ API غير معرف في متغيرات البيئة... 🐾';
+      console.error('❌ GROQ_API_KEY غير موجود في متغيرات البيئة (Railway).');
+      return 'عذراً، لم يتم العثور على مفتاح الـ API الخاص بي.';
     }
 
     const response = await axios.post(
@@ -17,29 +17,29 @@ async function generateResponse(userName, messageText) {
         messages: [
           {
             role: 'system',
-            content: CAT_PERSONA
+            content: CAT_PERSONA,
           },
           {
             role: 'user',
-            content: `[المستخدم ${userName}]: ${messageText}`
-          }
+            content: `[المستخدم ${userName}]: ${messageText}`,
+          },
         ],
-        temperature: 0.7
+        temperature: 0.7,
+        max_tokens: 200,
       },
       {
         headers: {
-          'Authorization': `Bearer ${apiKey.trim()}`,
-          'Content-Type': 'application/json'
-        }
+          Authorization: `Bearer ${apiKey.trim()}`,
+          'Content-Type': 'application/json',
+        },
       }
     );
 
     const reply = response.data?.choices?.[0]?.message?.content;
-    return reply ? reply.trim() : 'عذراً، لم أستطع فهم ذلك... 🐾';
-
+    return reply ? reply.trim() : 'عذراً، لم أستطع فهم ذلك.';
   } catch (error) {
-    console.error('Groq API Error:', error.response?.data || error.message);
-    return 'عذراً يا صديقي، واجهت مشكلة بسيطة أثناء التفكير... 🐾';
+    console.error('❌ Groq API Error:', error.response?.data || error.message);
+    return 'عذراً، حدث خطأ أثناء محاولة التفكير. حاول مرة أخرى بعد قليل.';
   }
 }
 
