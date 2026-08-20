@@ -1,6 +1,19 @@
+process.on('uncaughtException', (err) => {
+  console.error('❌ UNCAUGHT:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('❌ UNHANDLED:', err);
+  process.exit(1);
+});
+
 const { Client, GatewayIntentBits, Partials } = require('discord.js');
 const { setupHandlers } = require('./handlers');
 const config = require('./config');
+
+console.log('🔄 البوت يحاول التشغيل...');
+console.log('TOKEN exists:', !!config.DISCORD_TOKEN);
 
 const client = new Client({
   intents: [
