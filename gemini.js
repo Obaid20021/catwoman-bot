@@ -15,19 +15,14 @@ function resolveIdentity(userId) {
     return 'بروس واين، صاحب هذا القصر ومن تربطها به علاقة خاصة ومنافسة ذكية';
   }
   const known = config.KNOWN_MEMBERS[userId];
-  if (known) {
-    return `${known.name} — طبيعة علاقتهما: ${known.relation}`;
-  }
+  if (known) return `${known.name} — طبيعة علاقتهما: ${known.relation}`;
   return 'عضو عادي غير معروف لها من قبل';
 }
 
 async function generateResponse(userId, userName, messageText) {
   try {
     const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) {
-      console.error('❌ GROQ_API_KEY غير موجود.');
-      return 'في خلل تقني، حاول لاحقاً.';
-    }
+    if (!apiKey) return 'في خلل تقني، حاول لاحقاً.';
 
     const identity = resolveIdentity(userId);
     const history = getHistory(userId);
@@ -66,7 +61,6 @@ async function generateResponse(userId, userName, messageText) {
     let reply = response.data?.choices?.[0]?.message?.content?.trim();
     if (!reply) return 'ما فهمت، جرب مرة ثانية.';
 
-    // تنظيف الرد
     reply = reply.replace(/^\[.*?\]\s*:?\s*/gm, '').trim();
     reply = reply.replace(/^(كات|catwoman)\s*:\s*/gim, '').trim();
     reply = reply.replace(/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, '');
@@ -80,7 +74,6 @@ async function generateResponse(userId, userName, messageText) {
   } catch (error) {
     const errMsg = error.response?.data?.error?.message || error.message;
     console.error('❌ Groq Error:', errMsg);
-
     if (error.code === 'ECONNABORTED') return 'تأخر الرد، حاول مرة ثانية.';
     return 'في خلل تقني، حاول لاحقاً.';
   }
