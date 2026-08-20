@@ -1,5 +1,5 @@
-const { Client, GatewayIntentBits } = require('discord.js');
-const { generateResponse } = require('./gemini');
+const { Client, GatewayIntentBits, Partials } = require('discord.js');
+const { setupHandlers } = require('./handlers');
 const config = require('./config');
 
 const client = new Client({
@@ -7,27 +7,16 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers,
   ],
+  partials: [Partials.Message, Partials.Channel],
 });
 
-client.once('ready', () => {
-  console.log(`✅ البوت شغال كـ ${client.user.tag}`);
-});
+setupHandlers(client);
 
-client.on('messageCreate', async (message) => {
-  if (message.author.bot) return;
-  if (!message.mentions.has(client.user)) return;
-
-  const text = message.content.replace(/<@!?\d+>/g, '').trim();
-  if (!text) return;
-
-  const reply = await generateResponse(
-    message.author.id,
-    message.author.username,
-    text
-  );
-
-  message.reply(reply);
-});
-
-client.login(process.env.DISCORD_TOKEN);
+client.login(config.DISCORD_TOKEN)
+  .then(() => console.log('🔐 تم تسجيل الدخول بنجاح'))
+  .catch((err) => {
+    console.error('❌ فشل تسجيل الدخول:', err.message);
+    process.exit(1);
+  });
