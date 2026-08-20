@@ -12,9 +12,6 @@ const { Client, GatewayIntentBits, Partials } = require('discord.js');
 const { setupHandlers } = require('./handlers');
 const config = require('./config');
 
-console.log('🔄 البوت يحاول التشغيل...');
-console.log('TOKEN exists:', !!config.DISCORD_TOKEN);
-
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -28,7 +25,7 @@ const client = new Client({
 setupHandlers(client);
 
 client.login(config.DISCORD_TOKEN)
-  .then(() => console.log('🔐 تم تسجيل الدخول بنجاح'))
+  .then(() => console.log('🔐 تم تسجيل الدخول'))
   .catch((err) => {
     console.error('❌ فشل تسجيل الدخول:', err.message);
     process.exit(1);
