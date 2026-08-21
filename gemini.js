@@ -39,7 +39,7 @@ async function generateResponse(userId, userName, messageText) {
     const response = await axios.post(
       'https://api.groq.com/openai/v1/chat/completions',
       {
-        model: 'llama3-70b-8192',
+        model: 'llama-3.1-8b-instant',
         messages: [
           { role: 'system', content: CAT_PERSONA },
           ...history,
