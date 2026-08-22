@@ -30,7 +30,10 @@ client.login(config.DISCORD_TOKEN)
     console.error('❌ فشل تسجيل الدخول:', err.message);
     process.exit(1);
   });
-  // منع Railway من إيقاف البوت
+ // منع Railway من إيقاف البوت
 process.on('SIGTERM', () => {
   console.log('⚠️ SIGTERM received, keeping alive...');
 });
+
+const http = require('http');
+http.createServer((req, res) => res.end('ok')).listen(process.env.PORT || 3000);
