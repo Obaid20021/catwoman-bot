@@ -33,9 +33,8 @@ function setupHandlers(client) {
       await message.channel.sendTyping();
 
       const cleanText = message.content
-        .replace(new RegExp(`<@!?${client.user.id}>`, 'g'), '')
-        .replace(/كات/g, '')
-        .trim();
+  .replace(new RegExp(`<@!?${client.user.id}>`, 'g'), '')
+  .trim();
 
       const finalText = cleanText || 'مرحباً!';
 
