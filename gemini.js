@@ -64,7 +64,7 @@ async function generateResponse(userId, userName, messageText) {
     reply = reply.replace(/^\[.*?\]\s*:?\s*/gm, '').trim();
     reply = reply.replace(/^(كات|catwoman)\s*:\s*/gim, '').trim();
     reply = reply.replace(/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, '');
-    reply = reply.replace(/\b[a-zA-Z]{3,}\b/g, '').replace(/\s{2,}/g, ' ').trim();
+    reply = reply.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').trim();
 
     if (!reply) return 'ما عندي رد الحين، حاول لاحقاً.';
 
