@@ -47,7 +47,7 @@ async function generateResponse(userId, userName, messageText) {
         temperature: 0.9,
         frequency_penalty: 0.6,
         presence_penalty: 0.4,
-        max_tokens: 85,
+        max_tokens: 120,
       },
       {
         headers: {
