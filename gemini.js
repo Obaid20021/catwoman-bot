@@ -4,6 +4,7 @@ const config = require('./config');
 
 const conversationHistory = new Map();
 const HISTORY_LIMIT = 12;
+const MODEL = process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
 
 function getHistory(userId) {
   if (!conversationHistory.has(userId)) conversationHistory.set(userId, []);
@@ -19,10 +20,27 @@ function resolveIdentity(userId) {
   return 'عضو عادي غير معروف لها من قبل';
 }
 
+function cleanReply(raw) {
+  let reply = raw.trim();
+
+  reply = reply.replace(/^\[[^\]]*\]\s*:?\s*/gm, '').trim();
+  reply = reply.replace(/^(كات|catwoman)\s*:\s*/i, '').trim();
+  reply = reply.replace(/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, '');
+  reply = reply.replace(
+    /[\u{1F300}-\u{1FAFF}\u{2700}-\u{27BF}\u{2600}-\u{26FF}\u{2300}-\u{23FF}\u{FE0F}]/gu,
+    ''
+  );
+
+  return reply.replace(/\s{2,}/g, ' ').trim();
+}
+
 async function generateResponse(userId, userName, messageText) {
   try {
     const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) return 'في خلل تقني، حاول لاحقاً.';
+    if (!apiKey) {
+      console.error('❌ GROQ_API_KEY غير موجود.');
+      return 'في خلل تقني، حاول لاحقاً.';
+    }
 
     const identity = resolveIdentity(userId);
     const history = getHistory(userId);
@@ -39,11 +57,8 @@ async function generateResponse(userId, userName, messageText) {
     const response = await axios.post(
       'https://api.groq.com/openai/v1/chat/completions',
       {
-        model: process.env.GROQ_MODEL,
-        messages: [
-          { role: 'system', content: CAT_PERSONA },
-          ...history,
-        ],
+        model: MODEL,
+        messages: [{ role: 'system', content: CAT_PERSONA }, ...history],
         temperature: 0.9,
         frequency_penalty: 0.6,
         presence_penalty: 0.4,
@@ -58,22 +73,18 @@ async function generateResponse(userId, userName, messageText) {
       }
     );
 
-    let reply = response.data?.choices?.[0]?.message?.content?.trim();
-    if (!reply) return 'ما فهمت، جرب مرة ثانية.';
+    const rawReply = response.data?.choices?.[0]?.message?.content;
+    if (!rawReply) return 'ما فهمت، جرب مرة ثانية.';
 
-    reply = reply.replace(/^\[.*?\]\s*:?\s*/gm, '').trim();
-    reply = reply.replace(/^(كات|catwoman)\s*:\s*/gim, '').trim();
-    reply = reply.replace(/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, '');
-    reply = reply.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').trim();
-
+    const reply = cleanReply(rawReply);
     if (!reply) return 'ما عندي رد الحين، حاول لاحقاً.';
 
     history.push({ role: 'assistant', content: reply });
     return reply;
-
   } catch (error) {
     const errMsg = error.response?.data?.error?.message || error.message;
     console.error('❌ Groq Error:', errMsg);
+
     if (error.code === 'ECONNABORTED') return 'تأخر الرد، حاول مرة ثانية.';
     return 'في خلل تقني، حاول لاحقاً.';
   }
