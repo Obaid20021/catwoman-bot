@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { CAT_PERSONA } = require('./persona'); // هذا لازم نعدله في ملف persona.js
+const { CAT_PERSONA } = require('./persona'); // راح نعدله بعد
 const config = require('./config');
 
 const conversationHistory = new Map();
@@ -13,11 +13,10 @@ function getHistory(userId) {
 
 function resolveIdentity(userId) {
   if (userId === config.OWNER_ID) {
-    return 'بروس واين، صاحب هذا القصر ومن تربطها به علاقة خاصة ومنافسة ذكية';
+    return 'بروس واين، منافسها الذكي. هي تحاول دائماً تخترق قصره وتسرق أشياء منه، لكنها تحترمه كخصم.';
   }
   const known = config.KNOWN_MEMBERS[userId];
   if (known) {
-    // غيرنا known.relation لـ known.tone عشان يتوافق مع config الجديد
     return `${known.name} — طبيعة حديثه معها: ${known.tone}`;
   }
   return 'عضو عادي غير معروف لها من قبل';
@@ -25,16 +24,11 @@ function resolveIdentity(userId) {
 
 function cleanReply(raw) {
   let reply = raw.trim();
-
   reply = reply.replace(/^\[[^\]]*\]\s*:?\s*/gm, '').trim();
   reply = reply.replace(/^(كات|catwoman)\s*:\s*/i, '').trim();
   reply = reply.replace(/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, '');
-  reply = reply.replace(
-    /[\u{1F300}-\u{1FAFF}\u{2700}-\u{27BF}\u{2600}-\u{26FF}\u{2300}-\u{23FF}\u{FE0F}]/gu,
-    ''
-  );
-
-  // نضيف أسلوب "كات" هنا عشان ما يضيع
+  reply = reply.replace(/[\u{1F300}-\u{1FAFF}\u{2700}-\u{27BF}\u{2600}-\u{26FF}\u{2300}-\u{23FF}\u{FE0F}]/gu, '');
+  
   if (reply.length > 150) {
     reply = reply.substring(0, 150) + '...';
   }
@@ -70,7 +64,7 @@ async function generateResponse(userId, userName, messageText) {
         temperature: 0.9,
         frequency_penalty: 0.6,
         presence_penalty: 0.4,
-        max_tokens: 120, // قللناها عشان الردود تطلق قصيرة
+        max_tokens: 120,
       },
       {
         headers: {
