@@ -11,10 +11,11 @@ function initDb() {
         user_id TEXT PRIMARY KEY,
         username TEXT,
         loot_count INTEGER DEFAULT 0,
+        sentiment INTEGER DEFAULT 0,
         last_seen TEXT DEFAULT NULL
       )
     `);
-    console.log('خزنة كات جاهزة... لا أحد يقربها!');
+    console.log('خزنة كات جاهزة...');
   } catch (err) {
     console.error('فشل تهيئة الخزنة:', err.message);
   }
@@ -24,8 +25,8 @@ function logUserActivity(userId, username) {
   if (!db) return;
   try {
     const query = `
-      INSERT INTO users (user_id, username, loot_count, last_seen)
-      VALUES (?, ?, 1, datetime('now'))
+      INSERT INTO users (user_id, username, loot_count, sentiment, last_seen)
+      VALUES (?, ?, 1, 0, datetime('now'))
       ON CONFLICT(user_id) DO UPDATE SET
         username = excluded.username,
         loot_count = loot_count + 1,
@@ -34,6 +35,31 @@ function logUserActivity(userId, username) {
     db.prepare(query).run(userId, username);
   } catch (err) {
     console.error('خطأ في تحديث الخزنة:', err.message);
+  }
+}
+
+function updateSentiment(userId, change) {
+  if (!db) return;
+  try {
+    const query = `
+      UPDATE users
+      SET sentiment = sentiment + ?
+      WHERE user_id = ?
+    `;
+    db.prepare(query).run(change, userId);
+  } catch (err) {
+    console.error('خطأ في تحديث المزاج:', err.message);
+  }
+}
+
+function getSentiment(userId) {
+  if (!db) return 0;
+  try {
+    const result = db.prepare('SELECT sentiment FROM users WHERE user_id = ?').get(userId);
+    return result ? result.sentiment : 0;
+  } catch (err) {
+    console.error('خطأ في جلب المزاج:', err.message);
+    return 0;
   }
 }
 
@@ -47,4 +73,4 @@ function getUserStats(userId) {
   }
 }
 
-module.exports = { initDb, logUserActivity, getUserStats };
+module.exports = { initDb, logUserActivity, getUserStats, updateSentiment, getSentiment };
