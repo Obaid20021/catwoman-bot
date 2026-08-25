@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { CAT_PERSONA } = require('./persona');
+const { CAT_PERSONA } = require('./persona'); // هذا لازم نعدله في ملف persona.js
 const config = require('./config');
 
 const conversationHistory = new Map();
@@ -16,7 +16,10 @@ function resolveIdentity(userId) {
     return 'بروس واين، صاحب هذا القصر ومن تربطها به علاقة خاصة ومنافسة ذكية';
   }
   const known = config.KNOWN_MEMBERS[userId];
-  if (known) return `${known.name} — طبيعة علاقتهما: ${known.relation}`;
+  if (known) {
+    // غيرنا known.relation لـ known.tone عشان يتوافق مع config الجديد
+    return `${known.name} — طبيعة حديثه معها: ${known.tone}`;
+  }
   return 'عضو عادي غير معروف لها من قبل';
 }
 
@@ -31,6 +34,11 @@ function cleanReply(raw) {
     ''
   );
 
+  // نضيف أسلوب "كات" هنا عشان ما يضيع
+  if (reply.length > 150) {
+    reply = reply.substring(0, 150) + '...';
+  }
+
   return reply.replace(/\s{2,}/g, ' ').trim();
 }
 
@@ -38,7 +46,7 @@ async function generateResponse(userId, userName, messageText) {
   try {
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
-      console.error('❌ GROQ_API_KEY غير موجود.');
+      console.error('GROQ_API_KEY غير موجود.');
       return 'في خلل تقني، حاول لاحقاً.';
     }
 
@@ -62,7 +70,7 @@ async function generateResponse(userId, userName, messageText) {
         temperature: 0.9,
         frequency_penalty: 0.6,
         presence_penalty: 0.4,
-        max_tokens: 120,
+        max_tokens: 120, // قللناها عشان الردود تطلق قصيرة
       },
       {
         headers: {
@@ -83,7 +91,7 @@ async function generateResponse(userId, userName, messageText) {
     return reply;
   } catch (error) {
     const errMsg = error.response?.data?.error?.message || error.message;
-    console.error('❌ Groq Error:', errMsg);
+    console.error('Groq Error:', errMsg);
 
     if (error.code === 'ECONNABORTED') return 'تأخر الرد، حاول مرة ثانية.';
     return 'في خلل تقني، حاول لاحقاً.';
