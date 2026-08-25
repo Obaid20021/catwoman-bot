@@ -1,6 +1,7 @@
 const axios = require('axios');
-const { CAT_PERSONA } = require('./persona'); // راح نعدله بعد
+const { CAT_PERSONA } = require('./persona');
 const config = require('./config');
+const { getSentiment } = require('./db');
 
 const conversationHistory = new Map();
 const HISTORY_LIMIT = 12;
@@ -13,13 +14,19 @@ function getHistory(userId) {
 
 function resolveIdentity(userId) {
   if (userId === config.OWNER_ID) {
-    return 'بروس واين، منافسها الذكي. هي تحاول دائماً تخترق قصره وتسرق أشياء منه، لكنها تحترمه كخصم.';
+    const sentiment = getSentiment(userId);
+    if (sentiment > 0) return 'بروس واين، منافسها الرئيسي. علاقتهما دافئة الآن مع جذب خفي.';
+    if (sentiment < 0) return 'بروس واين، منافسها الرئيسي. علاقتهما باردة الآن.';
+    return 'بروس واين، منافسها الرئيسي. علاقتهما معقدة: منافسة + جذب خفي.';
   }
   const known = config.KNOWN_MEMBERS[userId];
   if (known) {
-    return `${known.name} — طبيعة حديثه معها: ${known.tone}`;
+    const sentiment = getSentiment(userId);
+    if (sentiment > 0) return `${known.name} — علاقتهما إيجابية الآن.`;
+    if (sentiment < 0) return `${known.name} — علاقتهما سلبية الآن.`;
+    return `${known.name} — علاقتهما محايدة.`;
   }
-  return 'عضو عادي غير معروف لها من قبل';
+  return 'عضو عادي غير معروف لها من قبل.';
 }
 
 function cleanReply(raw) {
