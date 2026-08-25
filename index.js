@@ -31,7 +31,6 @@ client.login(config.DISCORD_TOKEN)
     process.exit(1);
   });
 
-// منع Railway من إيقاف البوت
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, keeping alive...');
 });
