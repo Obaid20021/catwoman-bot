@@ -1,5 +1,5 @@
 const { Events } = require('discord.js');
-const { generateResponse } = require('./groq');
+const { generateResponse } = require('./groq.js');
 const { initDb, logUserActivity, updateSentiment } = require('./db');
 
 const COOLDOWN = new Map();
