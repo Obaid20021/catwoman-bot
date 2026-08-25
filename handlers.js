@@ -1,9 +1,9 @@
 const { Events } = require('discord.js');
-const { generateResponse } = require('./groq'); // غيرت اسم الملف لـ groq عشان يتوافق
-const { initDb, logUserActivity } = require('./db');
+const { generateResponse } = require('./groq');
+const { initDb, logUserActivity, updateSentiment } = require('./db');
 
 const COOLDOWN = new Map();
-const COOLDOWN_MS = 5000; // زدنا الوقت عشان تطلع "مشغولة"
+const COOLDOWN_MS = 5000;
 
 function setupHandlers(client) {
   client.once(Events.ClientReady, (readyClient) => {
@@ -11,7 +11,7 @@ function setupHandlers(client) {
     console.log(`كات جاهزة — ${readyClient.user.tag}`);
     readyClient.user.setPresence({
       status: 'online',
-      activities: [{ name: 'أراقب جوثام', type: 3 }], // غيرنا بدون إيموجي
+      activities: [{ name: 'أراقب جوثام', type: 3 }],
     });
   });
 
@@ -23,13 +23,11 @@ function setupHandlers(client) {
       const isMentioned = message.mentions.has(client.user);
       const hasName = message.content.includes('كات');
       
-      // شرط جديد: ترد فقط لو هناك كلام بعد المنشن أو "كات"
       if (!isMentioned && !hasName) return;
       if (isMentioned && !message.content.replace(new RegExp(`<@!?${client.user.id}>`, 'g'), '').trim()) {
-        return; // ما ترد لو فقط منشن وما في كلام بعده
+        return;
       }
 
-      // كولداون عشان ما يسبام
       const lastTime = COOLDOWN.get(message.author.id) || 0;
       if (Date.now() - lastTime < COOLDOWN_MS) return;
       COOLDOWN.set(message.author.id, Date.now());
