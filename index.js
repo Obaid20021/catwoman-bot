@@ -1,10 +1,10 @@
 process.on('uncaughtException', (err) => {
-  console.error('❌ UNCAUGHT:', err);
+  console.error('UNCAUGHT:', err);
   process.exit(1);
 });
 
 process.on('unhandledRejection', (err) => {
-  console.error('❌ UNHANDLED:', err);
+  console.error('UNHANDLED:', err);
   process.exit(1);
 });
 
@@ -25,14 +25,15 @@ const client = new Client({
 setupHandlers(client);
 
 client.login(config.DISCORD_TOKEN)
-  .then(() => console.log('🔐 تم تسجيل الدخول'))
+  .then(() => console.log('تم تسجيل الدخول'))
   .catch((err) => {
-    console.error('❌ فشل تسجيل الدخول:', err.message);
+    console.error('فشل تسجيل الدخول:', err.message);
     process.exit(1);
   });
- // منع Railway من إيقاف البوت
+
+// منع Railway من إيقاف البوت
 process.on('SIGTERM', () => {
-  console.log('⚠️ SIGTERM received, keeping alive...');
+  console.log('SIGTERM received, keeping alive...');
 });
 
 const http = require('http');
