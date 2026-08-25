@@ -10,37 +10,41 @@ function initDb() {
       CREATE TABLE IF NOT EXISTS users (
         user_id TEXT PRIMARY KEY,
         username TEXT,
-        messages_count INTEGER DEFAULT 0
+        loot_count INTEGER DEFAULT 0,  -- غيرناها من messages_count إلى loot_count (الغنائم/السرقات)
+        last_seen TEXT DEFAULT NULL     -- ضفنا متى آخر مرة شافتها فيه (يضيف واقعية)
       )
     `);
-    console.log('✅ قاعدة البيانات جاهزة.');
+    console.log('🐾 خزنة كات جاهزة... لا أحد يقربها!');
   } catch (err) {
-    console.error('❌ فشل تهيئة قاعدة البيانات:', err.message);
+    console.error('❌ فشل تهيئة الخزنة:', err.message);
   }
 }
 
+// بدل ما نسجل "نشاط"، كات; تراقب وتسجل "الغنائم" أو التفاعل كأنه سرقة
 function logUserActivity(userId, username) {
   if (!db) return;
   try {
     const query = `
-      INSERT INTO users (user_id, username, messages_count)
-      VALUES (?, ?, 1)
+      INSERT INTO users (user_id, username, loot_count, last_seen)
+      VALUES (?, ?, 1, datetime('now'))
       ON CONFLICT(user_id) DO UPDATE SET
         username = excluded.username,
-        messages_count = messages_count + 1
+        loot_count = loot_count + 1,
+        last_seen = datetime('now')
     `;
     db.prepare(query).run(userId, username);
   } catch (err) {
-    console.error('❌ خطأ في تسجيل نشاط المستخدم:', err.message);
+    console.error('❌ خطأ في تحديث الخزنة:', err.message);
   }
 }
 
+// جلب بيانات المستخدم
 function getUserStats(userId) {
   if (!db) return null;
   try {
     return db.prepare('SELECT * FROM users WHERE user_id = ?').get(userId) || null;
   } catch (err) {
-    console.error('❌ خطأ في جلب بيانات المستخدم:', err.message);
+    console.error('❌ خطأ في فتح الخزنة:', err.message);
     return null;
   }
 }
