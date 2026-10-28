@@ -34,15 +34,27 @@ function resolveIdentity(userId) {
 
 function cleanReply(raw) {
   let reply = raw.trim();
+  
+  // إزالة ترويسة المتحدث إذا النموذج كررها
   reply = reply.replace(/^\[[^\]]*\]\s*:?\s*/gm, '').trim();
   reply = reply.replace(/^(كات|catwoman)\s*:\s*/i, '').trim();
+  
+  // إزالة الكاري (إيموجي) والحروف الصينية/اليابانية/الكورية
   reply = reply.replace(/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, '');
   reply = reply.replace(/[\u{1F300}-\u{1FAFF}\u{2700}-\u{27BF}\u{2600}-\u{26FF}\u{2300}-\u{23FF}\u{FE0F}]/gu, '');
   
+  // تقصير الرد إذا تجاوز 300 حرف — يقطع عند نهاية جملة
   if (reply.length > 300) {
-    reply = reply.substring(0, 300) + '...';
+    const cut = reply.slice(0, 300);
+    const lastDot = Math.max(
+      cut.lastIndexOf('.'),
+      cut.lastIndexOf('!'),
+      cut.lastIndexOf('?'),
+      cut.lastIndexOf('؟')
+    );
+    reply = lastDot > 150 ? cut.slice(0, lastDot + 1) : cut + '...';
   }
-
+  
   return reply.replace(/\s{2,}/g, ' ').trim();
 }
 
@@ -51,30 +63,34 @@ async function generateResponse(userId, userName, messageText) {
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
       console.error('GROQ_API_KEY غير موجود.');
-      return 'في خلل تقني، حاول لاحقاً.';
+      return 'في خلل تقني، حاول لاحقاُ.';
     }
 
     const identity = resolveIdentity(userId);
     const history = getHistory(userId);
 
-    history.push({
-      role: 'user',
-      content: `[المتحدث: ${userName} | الصفة: ${identity}]\n${messageText}`,
-    });
+    // بناء محتوى الرسالة مع الهوية
+    const userMessageContent = `[المتحدث: ${userName} | الصفة: ${identity}]\n${messageText}`;
+    history.push({ role: 'user', content: userMessageContent });
 
+    // قص الذاكرة لآخر 12 رسالة
     if (history.length > HISTORY_LIMIT) {
       history.splice(0, history.length - HISTORY_LIMIT);
     }
 
+    const model = getModel();
     const response = await axios.post(
       'https://api.groq.com/openai/v1/chat/completions',
       {
-        model: getModel(),
-        messages: [{ role: 'system', content: CAT_PERSONA }, ...history],
-       temperature: 0.6,
-frequency_penalty: 0.2,
-presence_penalty: 0.0,
-max_tokens: 150,
+        model: model,
+        messages: [
+          { role: 'system', content: CAT_PERSONA },
+          ...history
+        ],
+        temperature: 1.0,
+        top_p: 0.95,
+        frequency_penalty: 0.3,
+        max_tokens: 300,
       },
       {
         headers: {
@@ -87,21 +103,23 @@ max_tokens: 150,
 
     const rawReply = response.data?.choices?.[0]?.message?.content;
     if (!rawReply) {
-      console.error('Groq returned empty:', JSON.stringify(response.data).slice(0,500));
+      console.error('Groq returned empty:', JSON.stringify(response.data).slice(0, 500));
       return 'ما فهمت، جرب مرة ثانية.';
     }
 
     const reply = cleanReply(rawReply);
-    if (!reply) return 'ما عندي رد الحين، حاول لاحقاً.';
+    if (!reply) return 'ما عندي رد الحين، حاول لاحقاُ.';
 
+    // حفظ الرد في الذاكرة
     history.push({ role: 'assistant', content: reply });
     return reply;
+
   } catch (error) {
     const errMsg = error.response?.data?.error?.message || error.message;
     console.error('Groq Error:', errMsg);
 
     if (error.code === 'ECONNABORTED') return 'تأخر الرد، حاول مرة ثانية.';
-    return 'في خلل تقني، حاول لاحقاً.';
+    return 'في خلل تقني، حاول لاحقاُ.';
   }
 }
 
