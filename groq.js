@@ -5,7 +5,10 @@ const { getSentiment } = require('./db');
 
 const conversationHistory = new Map();
 const HISTORY_LIMIT = 12;
-const MODEL = process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
+
+function getModel() {
+  return (process.env.GROQ_MODEL || 'openai/gpt-oss-20b').trim();
+}
 
 function getHistory(userId) {
   if (!conversationHistory.has(userId)) conversationHistory.set(userId, []);
@@ -36,8 +39,8 @@ function cleanReply(raw) {
   reply = reply.replace(/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, '');
   reply = reply.replace(/[\u{1F300}-\u{1FAFF}\u{2700}-\u{27BF}\u{2600}-\u{26FF}\u{2300}-\u{23FF}\u{FE0F}]/gu, '');
   
-  if (reply.length > 150) {
-    reply = reply.substring(0, 150) + '...';
+  if (reply.length > 300) {
+    reply = reply.substring(0, 300) + '...';
   }
 
   return reply.replace(/\s{2,}/g, ' ').trim();
@@ -66,24 +69,27 @@ async function generateResponse(userId, userName, messageText) {
     const response = await axios.post(
       'https://api.groq.com/openai/v1/chat/completions',
       {
-        model: MODEL,
+        model: getModel(),
         messages: [{ role: 'system', content: CAT_PERSONA }, ...history],
         temperature: 0.9,
         frequency_penalty: 0.6,
         presence_penalty: 0.4,
-        max_tokens: 120,
+        max_tokens: 1000,
       },
       {
         headers: {
           Authorization: `Bearer ${apiKey.trim()}`,
           'Content-Type': 'application/json',
         },
-        timeout: 15000,
+        timeout: 25000,
       }
     );
 
     const rawReply = response.data?.choices?.[0]?.message?.content;
-    if (!rawReply) return 'ما فهمت، جرب مرة ثانية.';
+    if (!rawReply) {
+      console.error('Groq returned empty:', JSON.stringify(response.data).slice(0,500));
+      return 'ما فهمت، جرب مرة ثانية.';
+    }
 
     const reply = cleanReply(rawReply);
     if (!reply) return 'ما عندي رد الحين، حاول لاحقاً.';
