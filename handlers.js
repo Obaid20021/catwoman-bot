@@ -1,5 +1,5 @@
 const { Events } = require('discord.js');
-const { generateResponse } = require('./gemini');
+const { generateResponse } = require('./groq');
 const { initDb, logUserActivity, updateSentiment } = require('./db');
 
 const COOLDOWN = new Map();
