@@ -7,7 +7,7 @@ const conversationHistory = new Map();
 const HISTORY_LIMIT = 12;
 
 function getModel() {
-  return (process.env.GROQ_MODEL || 'openai/gpt-oss-20b').trim();
+  return (process.env.GROQ_MODEL || 'llama-3.3-70b-versatile').trim();
 }
 
 function getHistory(userId) {
