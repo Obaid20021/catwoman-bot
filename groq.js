@@ -71,10 +71,10 @@ async function generateResponse(userId, userName, messageText) {
       {
         model: getModel(),
         messages: [{ role: 'system', content: CAT_PERSONA }, ...history],
-        temperature: 0.9,
-        frequency_penalty: 0.6,
-        presence_penalty: 0.4,
-        max_tokens: 1000,
+       temperature: 0.6,
+frequency_penalty: 0.2,
+presence_penalty: 0.0,
+max_tokens: 150,
       },
       {
         headers: {
