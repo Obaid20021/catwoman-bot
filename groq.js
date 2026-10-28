@@ -34,16 +34,11 @@ function resolveIdentity(userId) {
 
 function cleanReply(raw) {
   let reply = raw.trim();
-  
-  // إزالة ترويسة المتحدث إذا النموذج كررها
   reply = reply.replace(/^\[[^\]]*\]\s*:?\s*/gm, '').trim();
   reply = reply.replace(/^(كات|catwoman)\s*:\s*/i, '').trim();
-  
-  // إزالة الكاري (إيموجي) والحروف الصينية/اليابانية/الكورية
   reply = reply.replace(/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, '');
   reply = reply.replace(/[\u{1F300}-\u{1FAFF}\u{2700}-\u{27BF}\u{2600}-\u{26FF}\u{2300}-\u{23FF}\u{FE0F}]/gu, '');
-  
-  // تقصير الرد إذا تجاوز 300 حرف — يقطع عند نهاية جملة
+
   if (reply.length > 300) {
     const cut = reply.slice(0, 300);
     const lastDot = Math.max(
@@ -54,7 +49,7 @@ function cleanReply(raw) {
     );
     reply = lastDot > 150 ? cut.slice(0, lastDot + 1) : cut + '...';
   }
-  
+
   return reply.replace(/\s{2,}/g, ' ').trim();
 }
 
@@ -63,29 +58,27 @@ async function generateResponse(userId, userName, messageText) {
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
       console.error('GROQ_API_KEY غير موجود.');
-      return 'في خلل تقني، حاول لاحقاُ.';
+      return 'في خلل تقني، حاول لاحقاً.';
     }
 
     const identity = resolveIdentity(userId);
     const history = getHistory(userId);
 
-    // بناء محتوى الرسالة مع الهوية
-    const userMessageContent = `[المتحدث: ${userName} | الصفة: ${identity}]\n${messageText}`;
-    history.push({ role: 'user', content: userMessageContent });
+    // خزّن الرسالة نظيفة بدون ترويسة
+    history.push({ role: 'user', content: messageText });
 
-    // قص الذاكرة لآخر 12 رسالة
     if (history.length > HISTORY_LIMIT) {
       history.splice(0, history.length - HISTORY_LIMIT);
     }
 
-    const model = getModel();
     const response = await axios.post(
       'https://api.groq.com/openai/v1/chat/completions',
       {
-        model: model,
+        model: getModel(),
         messages: [
           { role: 'system', content: CAT_PERSONA },
-          ...history
+          { role: 'system', content: `تخاطبين الآن: ${userName}. ${identity}` },
+          ...history,
         ],
         temperature: 1.0,
         top_p: 0.95,
@@ -108,9 +101,8 @@ async function generateResponse(userId, userName, messageText) {
     }
 
     const reply = cleanReply(rawReply);
-    if (!reply) return 'ما عندي رد الحين، حاول لاحقاُ.';
+    if (!reply) return 'ما عندي رد الحين، حاول لاحقاً.';
 
-    // حفظ الرد في الذاكرة
     history.push({ role: 'assistant', content: reply });
     return reply;
 
@@ -119,7 +111,7 @@ async function generateResponse(userId, userName, messageText) {
     console.error('Groq Error:', errMsg);
 
     if (error.code === 'ECONNABORTED') return 'تأخر الرد، حاول مرة ثانية.';
-    return 'في خلل تقني، حاول لاحقاُ.';
+    return 'في خلل تقني، حاول لاحقاً.';
   }
 }
 
