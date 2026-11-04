@@ -11,7 +11,7 @@ const client = new Client({
   ]
 });
 
-client.once('ready', () => {
+client.once('clientReady', () => {
   console.log(`Catwoman is prowling the shadows as ${client.user.tag}`);
 });
 
