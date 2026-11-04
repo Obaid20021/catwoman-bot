@@ -7,7 +7,7 @@ const conversationHistory = new Map();
 const HISTORY_LIMIT = 12;
 
 function getModel() {
-  return (process.env.GROQ_MODEL || 'llama-3.3-70b-versatile').trim();
+  return (process.env.GROQ_MODEL || config.GROQ_MODEL || 'llama-3.3-70b-versatile').trim();
 }
 
 function getHistory(userId) {
@@ -15,29 +15,29 @@ function getHistory(userId) {
   return conversationHistory.get(userId);
 }
 
-function resolveIdentity(userId) {
+async function resolveIdentity(userId) {
   if (userId === config.OWNER_ID) {
-    const sentiment = getSentiment(userId);
+    const sentiment = await getSentiment(userId);
     if (sentiment > 0) return 'بروس واين، منافسها الرئيسي. علاقتهما دافئة الآن مع جذب خفي.';
     if (sentiment < 0) return 'بروس واين، منافسها الرئيسي. علاقتهما باردة الآن.';
     return 'بروس واين، منافسها الرئيسي. علاقتهما معقدة: منافسة + جذب خفي.';
   }
-  const known = config.KNOWN_MEMBERS[userId];
+  const known = config.KNOWN_MEMBERS ? config.KNOWN_MEMBERS[userId] : null;
   if (known) {
-    const sentiment = getSentiment(userId);
-    if (sentiment > 0) return `${known.name} — علاقتهما إيجابية الآن.`;
-    if (sentiment < 0) return `${known.name} — علاقتهما سلبية الآن.`;
-    return `${known.name} — علاقتهما محايدة.`;
+    const sentiment = await getSentiment(userId);
+    if (sentiment > 0) return `علاقتهما إيجابية الآن - ${known.name}`;
+    if (sentiment < 0) return `علاقتهما سلبية الآن - ${known.name}`;
+    return `علاقتهما محايدة - ${known.name}`;
   }
   return 'عضو عادي غير معروف لها من قبل.';
 }
 
 function cleanReply(raw) {
   let reply = raw.trim();
-  reply = reply.replace(/^\[[^\]]*\]\s*:?\s*/gm, '').trim();
-  reply = reply.replace(/^(كات|catwoman)\s*:\s*/i, '').trim();
-  reply = reply.replace(/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, '');
-  reply = reply.replace(/[\u{1F300}-\u{1FAFF}\u{2700}-\u{27BF}\u{2600}-\u{26FF}\u{2300}-\u{23FF}\u{FE0F}]/gu, '');
+  reply = reply.replace(/^\[[^\]]+\]\s*:\s*/gm, '').trim();
+  reply = reply.replace(/^(\*|catwoman)\s*:\s*/i, '').trim();
+  reply = reply.replace(/[一-鿿぀-ヿ가-힯]/g, '');
+  reply = reply.replace(/[\u{1F300}-\u{1Faff}\u{2700}-\u{27BF}\u{2600}-\u{26FF}\u{2300}-\u{23FF}\u{FE0F}]/gu, '');
 
   if (reply.length > 300) {
     const cut = reply.slice(0, 300);
@@ -49,70 +49,60 @@ function cleanReply(raw) {
     );
     reply = lastDot > 150 ? cut.slice(0, lastDot + 1) : cut + '...';
   }
-
-  return reply.replace(/\s{2,}/g, ' ').trim();
+  return reply;
 }
 
-async function generateResponse(userId, userName, messageText) {
+async function generateResponse(userId, userMessage) {
+  const history = getHistory(userId);
+  const identityContext = await resolveIdentity(userId);
+
+  const messages = [
+    {
+      role: 'system',
+      content: `${CAT_PERSONA}\n\nمعلومات عن المستخدم الحاضر:\n${identityContext}`
+    },
+    ...history,
+    { role: 'user', content: userMessage }
+  ];
+
   try {
-    const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) {
-      console.error('GROQ_API_KEY غير موجود.');
-      return 'في خلل تقني، حاول لاحقاً.';
-    }
+    const response = await axios.post(
+      'https://api.groq.com/openai/v1/chat/completions',
+      {
+        model: getModel(),
+        messages: messages,
+        temperature: 0.75,
+        max_tokens: 400
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${config.GROQ_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
 
-    const identity = resolveIdentity(userId);
-    const history = getHistory(userId);
+    const rawReply = response.data.choices[0].message.content;
+    const cleaned = cleanReply(rawReply);
 
-    // خزّن الرسالة نظيفة بدون ترويسة
-    history.push({ role: 'user', content: messageText });
+    history.push({ role: 'user', content: userMessage });
+    history.push({ role: 'assistant', content: cleaned });
 
     if (history.length > HISTORY_LIMIT) {
       history.splice(0, history.length - HISTORY_LIMIT);
     }
 
-    const response = await axios.post(
-      'https://api.groq.com/openai/v1/chat/completions',
-      {
-        model: getModel(),
-        messages: [
-          { role: 'system', content: CAT_PERSONA },
-          { role: 'system', content: `تخاطبين الآن: ${userName}. ${identity}` },
-          ...history,
-        ],
-        temperature: 1.0,
-        top_p: 0.95,
-        frequency_penalty: 0.3,
-        max_tokens: 300,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${apiKey.trim()}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: 25000,
-      }
-    );
-
-    const rawReply = response.data?.choices?.[0]?.message?.content;
-    if (!rawReply) {
-      console.error('Groq returned empty:', JSON.stringify(response.data).slice(0, 500));
-      return 'ما فهمت، جرب مرة ثانية.';
-    }
-
-    const reply = cleanReply(rawReply);
-    if (!reply) return 'ما عندي رد الحين، حاول لاحقاً.';
-
-    history.push({ role: 'assistant', content: reply });
-    return reply;
-
+    return cleaned;
   } catch (error) {
-    const errMsg = error.response?.data?.error?.message || error.message;
-    console.error('Groq Error:', errMsg);
-
-    if (error.code === 'ECONNABORTED') return 'تأخر الرد، حاول مرة ثانية.';
-    return 'في خلل تقني، حاول لاحقاً.';
+    console.error('Groq API Error:', error?.response?.data || error.message);
+    return 'يبدو أن ظلال غوثام تعطل الاتصال حالياً... سنلتقي لاحقاً.';
   }
 }
 
-module.exports = { generateResponse };
+module.exports = {
+  generateResponse,
+  getHistory,
+  cleanReply,
+  resolveIdentity,
+  getModel
+};
