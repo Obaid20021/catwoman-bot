@@ -1,19 +1,15 @@
 {
   "name": "catwoman-bot",
   "version": "1.0.0",
-  "description": "بوت المرأة القطة - لصة من جوثام في ديسكورد",
+  "description": "Discord Bot with Catwoman (Selina Kyle) Persona powered by Groq Llama 3.3",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js"
+    "start": "node index.js"
   },
   "dependencies": {
-    "axios": "^1.6.8",
-    "better-sqlite3": "^11.3.0",
-    "discord.js": "^14.14.1",
-    "dotenv": "^16.4.5"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.0"
+    "axios": "^1.7.9",
+    "discord.js": "^14.17.3",
+    "dotenv": "^16.4.7",
+    "sqlite3": "^5.1.7"
   }
 }
