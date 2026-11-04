@@ -1,76 +1,44 @@
-const Database = require('better-sqlite3');
-const config = require('./config');
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
 
-let db;
+const dbPath = path.resolve(__dirname, 'catwoman.db');
+const db = new sqlite3.Database(dbPath);
 
-function initDb() {
-  try {
-    db = new Database(config.DATABASE_PATH);
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS users (
-        user_id TEXT PRIMARY KEY,
-        username TEXT,
-        loot_count INTEGER DEFAULT 0,
-        sentiment INTEGER DEFAULT 0,
-        last_seen TEXT DEFAULT NULL
-      )
-    `);
-    console.log('خزنة كات جاهزة...');
-  } catch (err) {
-    console.error('فشل تهيئة الخزنة:', err.message);
-  }
-}
-
-function logUserActivity(userId, username) {
-  if (!db) return;
-  try {
-    const query = `
-      INSERT INTO users (user_id, username, loot_count, sentiment, last_seen)
-      VALUES (?, ?, 1, 0, datetime('now'))
-      ON CONFLICT(user_id) DO UPDATE SET
-        username = excluded.username,
-        loot_count = loot_count + 1,
-        last_seen = datetime('now')
-    `;
-    db.prepare(query).run(userId, username);
-  } catch (err) {
-    console.error('خطأ في تحديث الخزنة:', err.message);
-  }
-}
-
-function updateSentiment(userId, change) {
-  if (!db) return;
-  try {
-    const query = `
-      UPDATE users
-      SET sentiment = sentiment + ?
-      WHERE user_id = ?
-    `;
-    db.prepare(query).run(change, userId);
-  } catch (err) {
-    console.error('خطأ في تحديث المزاج:', err.message);
-  }
-}
+db.serialize(() => {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS sentiments (
+      user_id TEXT PRIMARY KEY,
+      score INTEGER DEFAULT 0,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+});
 
 function getSentiment(userId) {
-  if (!db) return 0;
-  try {
-    const result = db.prepare('SELECT sentiment FROM users WHERE user_id = ?').get(userId);
-    return result ? result.sentiment : 0;
-  } catch (err) {
-    console.error('خطأ في جلب المزاج:', err.message);
-    return 0;
-  }
+  return new Promise((resolve) => {
+    db.get('SELECT score FROM sentiments WHERE user_id = ?', [userId], (err, row) => {
+      if (err || !row) return resolve(0);
+      resolve(row.score);
+    });
+  });
 }
 
-function getUserStats(userId) {
-  if (!db) return null;
-  try {
-    return db.prepare('SELECT * FROM users WHERE user_id = ?').get(userId) || null;
-  } catch (err) {
-    console.error('خطأ في فتح الخزنة:', err.message);
-    return null;
-  }
+function updateSentiment(userId, delta) {
+  return new Promise((resolve) => {
+    getSentiment(userId).then((current) => {
+      const newScore = current + delta;
+      db.run(
+        `INSERT INTO sentiments (user_id, score, updated_at)
+         VALUES (?, ?, CURRENT_TIMESTAMP)
+         ON CONFLICT(user_id) DO UPDATE SET score = ?, updated_at = CURRENT_TIMESTAMP`,
+        [userId, newScore, newScore],
+        (err) => resolve(newScore)
+      );
+    });
+  });
 }
 
-module.exports = { initDb, logUserActivity, getUserStats, updateSentiment, getSentiment };
+module.exports = {
+  getSentiment,
+  updateSentiment
+};
