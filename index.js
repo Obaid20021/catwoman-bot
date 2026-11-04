@@ -1,39 +1,24 @@
-process.on('uncaughtException', (err) => {
-  console.error('UNCAUGHT:', err);
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (err) => {
-  console.error('UNHANDLED:', err);
-  process.exit(1);
-});
-
-const { Client, GatewayIntentBits, Partials } = require('discord.js');
-const { setupHandlers } = require('./handlers');
+const { Client, GatewayIntentBits } = require('discord.js');
 const config = require('./config');
+const { handleMessage } = require('./handlers');
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMembers,
-  ],
-  partials: [Partials.Message, Partials.Channel],
+    GatewayIntentBits.DirectMessages
+  ]
 });
 
-setupHandlers(client);
-
-client.login(config.DISCORD_TOKEN)
-  .then(() => console.log('تم تسجيل الدخول'))
-  .catch((err) => {
-    console.error('فشل تسجيل الدخول:', err.message);
-    process.exit(1);
-  });
-
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, keeping alive...');
+client.once('ready', () => {
+  console.log(`Catwoman is prowling the shadows as ${client.user.tag}`);
 });
 
-const http = require('http');
-http.createServer((req, res) => res.end('ok')).listen(process.env.PORT || 3000);
+client.on('messageCreate', handleMessage);
+
+if (!config.DISCORD_TOKEN || config.DISCORD_TOKEN === 'YOUR_DISCORD_BOT_TOKEN') {
+  console.error('Please set a valid DISCORD_TOKEN in your .env file or config.js');
+} else {
+  client.login(config.DISCORD_TOKEN);
+}
